@@ -59,6 +59,10 @@ const StyledTab = styled(NavLink)`
     background: #e4deff;
     color: #5434d6;
   }
+
+  &:not(.active):hover {
+    background: #a9a4b2;
+  }
 `;
 
 // 아이콘 (SVG 원본 크기 그대로 사용)
