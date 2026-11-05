@@ -76,7 +76,7 @@ export default function SearchResult() {
 
   return (
     <>
-      <BackHeader />
+      <BackHeader label="조회" />
       <StyledContent>
         <StyledSearchForm onSubmit={handleSubmit}>
           <StyledSearchIcon src={searchIcon} alt="" />
@@ -90,7 +90,11 @@ export default function SearchResult() {
         <StyledResults>
           <StyledResultHeading>검색결과</StyledResultHeading>
           {MOCK_RESULTS.map((result) => (
-            <SearchResultBox key={result.account} {...result} />
+            <SearchResultBox
+              key={result.account}
+              {...result}
+              onClick={() => navigate("/search/detail", { state: result })}
+            />
           ))}
         </StyledResults>
       </StyledContent>

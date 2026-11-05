@@ -115,11 +115,9 @@ const StyledTime = styled.p`
   text-overflow: ellipsis;
 `;
 
-// 화살표는 왼쪽을 가리키는 원본 SVG를 좌우 반전해 오른쪽으로 사용
 const StyledChevron = styled.img`
   flex-shrink: 0;
   display: block;
-  transform: scaleX(-1);
 `;
 
 // 검색 결과 목록 한 줄을 보여주는 박스 (status별로 테두리·배지가 바뀜)
