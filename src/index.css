@@ -1,3 +1,5 @@
+@import 'pretendard/dist/web/static/pretendard.css';
+
 @font-face {
   font-family: 'esamanru';
   src: url('./assets/fonts/esamanru-Light.ttf') format('truetype');

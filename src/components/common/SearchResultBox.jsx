@@ -28,7 +28,7 @@ const StyledBox = styled.button`
   border: ${({ $border }) => $border};
   border-radius: 20px;
   box-shadow: 0 1px 2.5px rgba(23, 21, 28, 0.2);
-  font-family: "esamanru", sans-serif;
+  font-family: "Pretendard", sans-serif;
   text-align: left;
   cursor: pointer;
 
@@ -65,7 +65,7 @@ const StyledAccount = styled.p`
   overflow: hidden;
   color: #191919;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
   text-overflow: ellipsis;
 `;
@@ -76,7 +76,7 @@ const StyledBadge = styled.span`
   background: ${({ $bg }) => $bg};
   color: ${({ $color }) => $color};
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
 `;
 
@@ -101,7 +101,7 @@ const StyledCountLabel = styled.span`
 
 const StyledCountValue = styled.span`
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
 `;
 
 const StyledTime = styled.p`

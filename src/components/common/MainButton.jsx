@@ -31,7 +31,7 @@ const StyledMainButton = styled.button`
   padding: 12px 16px;
   box-sizing: border-box;
   border-radius: 10px;
-  font-family: "esamanru", sans-serif;
+  font-family: "Pretendard", sans-serif;
   font-weight: 700;
   font-size: 16px;
   cursor: pointer;
