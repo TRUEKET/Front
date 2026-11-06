@@ -147,7 +147,7 @@ export default function Home() {
   const handleSubmit = (event) => {
     event.preventDefault();
     if (!phone.trim()) return;
-    navigate(`/search/result?q=${encodeURIComponent(phone.trim())}`);
+    navigate(`/search?q=${encodeURIComponent(phone.trim())}`);
   };
 
   return (

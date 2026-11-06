@@ -84,7 +84,7 @@ const StyledIcon = styled.img`
   display: block;
 `;
 
-// 모든 페이지 하단에 공통으로 보이는 탭바 (RootLayout·SubLayout에서 사용)
+// 페이지 하단에 공통으로 보이는 탭바 (RootLayout·SubLayout에서 사용, 이의제기 화면은 제외)
 export default function Footer() {
   const { pathname } = useLocation();
 

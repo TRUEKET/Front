@@ -6,8 +6,9 @@ import MyInfo from "./pages/myInfo/MyInfo.jsx";
 import Response from "./pages/response/Response.jsx";
 import TrueShot from "./pages/trueShot/TrueShot.jsx";
 import Search from "./pages/home/Search.jsx";
-import SearchResult from "./pages/home/SearchResult.jsx";
 import DetailInfo from "./pages/home/DetailInfo.jsx";
+import Dispute from "./pages/home/Dispute.jsx";
+import DisputeReason from "./pages/home/DisputeReason.jsx";
 
 function App() {
   return (
@@ -21,8 +22,9 @@ function App() {
         </Route>
         <Route element={<SubLayout />}>
           <Route path="/search" element={<Search />} />
-          <Route path="/search/result" element={<SearchResult />} />
           <Route path="/search/detail" element={<DetailInfo />} />
+          <Route path="/search/dispute" element={<Dispute />} />
+          <Route path="/search/dispute/reason" element={<DisputeReason />} />
         </Route>
       </Routes>
     </BrowserRouter>
