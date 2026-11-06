@@ -177,7 +177,7 @@ export default function Home() {
           </StyledCtaTexts>
           <StyledCtaArrow src={ctaArrowIcon} alt="" />
         </StyledCtaCard>
-        <StyledCtaCard to="/response">
+        <StyledCtaCard to="/report">
           <StyledCtaTexts>
             <StyledCtaTitle>사기 피해 신고</StyledCtaTitle>
             <StyledCtaDesc>사기 피해를 알려 또다른 피해자 발생을 막아요</StyledCtaDesc>

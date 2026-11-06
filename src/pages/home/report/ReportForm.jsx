@@ -47,7 +47,7 @@ const StyledTabs = styled(StyledCard)`
   align-items: center;
 `;
 
-// 선택된 탭은 연보라 + 그림자, 아닌 탭은 회색
+// 선택된 탭은 연보라 + 그림자, 아닌 탭은 회색 ($static이면 사기 신고 하나만 보여주는 고정 표시라 누를 수 없음)
 const StyledTab = styled.button`
   display: flex;
   flex: 1 0 0;
@@ -66,7 +66,7 @@ const StyledTab = styled.button`
   font-family: "Pretendard", sans-serif;
   line-height: normal;
   text-align: left;
-  cursor: pointer;
+  cursor: ${({ $static }) => ($static ? "default" : "pointer")};
 `;
 
 const StyledTabTitle = styled.span`
@@ -195,7 +195,9 @@ const StyledBottomAction = styled.div`
 `;
 
 // 판독 결과를 바탕으로 의심 제보 또는 사기 신고를 등록하는 화면
-export default function ReportForm() {
+// mode: scan 판독결과에서 진입 (의심 제보/사기 신고 탭 + 송금 기록 사진 확인)
+//       report 신고하기 흐름에서 진입 (사기 신고만, 금전 피해 자료는 앞에서 이미 확인해서 사진 카드 없음)
+export default function ReportForm({ mode = "scan" }) {
   const navigate = useNavigate();
   const { state } = useLocation();
   const [searchParams] = useSearchParams();
@@ -210,6 +212,8 @@ export default function ReportForm() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const isFraud = reportType === "fraud";
+  const isReportFlow = mode === "report";
+  const visibleTypes = isReportFlow ? REPORT_TYPES.filter(({ id }) => id === "fraud") : REPORT_TYPES;
 
   const handleAgreeChange = (checked) => {
     setAgreed(checked);
@@ -248,13 +252,15 @@ export default function ReportForm() {
       <BackHeader label="뒤로 가기" />
       <StyledContent>
         <StyledTabs role="radiogroup" aria-label="신고 종류">
-          {REPORT_TYPES.map(({ id, title, sub }) => (
+          {visibleTypes.map(({ id, title, sub }) => (
             <StyledTab
               key={id}
               type="button"
               role="radio"
               aria-checked={reportType === id}
               $selected={reportType === id}
+              $static={isReportFlow}
+              disabled={isReportFlow}
               onClick={() => setReportType(id)}
             >
               <StyledTabTitle>{title}</StyledTabTitle>
@@ -280,7 +286,7 @@ export default function ReportForm() {
                 <input type="checkbox" checked={agreed} onChange={(e) => handleAgreeChange(e.target.checked)} />
                 <StyledCheckBox $checked={agreed} />
                 <span>
-                  제보 내용이 사실에 기반한 것을 약속합니다
+                  {isReportFlow ? "신고" : "제보"} 내용이 사실에 기반한 것을 약속합니다
                   <br />
                   사실과 일치하지 않을 시 불이익이 발생할 수 있다는 것을 인지했습니다
                 </span>
@@ -288,30 +294,32 @@ export default function ReportForm() {
               {showAgreeError && <StyledAgreeError>체크하지 않을 시, 신고에 제한이 발생합니다.</StyledAgreeError>}
             </StyledAgreeGroup>
 
-            <StyledCard>
-              <StyledCardTitle>송금 기록 사진</StyledCardTitle>
-              <StyledUploadGroup>
-                <CaptureTiles images={images} onChange={handleImagesChange} />
-                <StyledNote>사진 속 계좌와 신고 정보 계좌가 일치하는 지 확인합니다.</StyledNote>
-                {aiCheck === "mismatch" && (
-                  <StyledNote $error>사진 속 받는 계좌가 신고 정보 계좌와 상이합니다. 다시 올려주세요</StyledNote>
+            {!isReportFlow && (
+              <StyledCard>
+                <StyledCardTitle>송금 기록 사진</StyledCardTitle>
+                <StyledUploadGroup>
+                  <CaptureTiles images={images} onChange={handleImagesChange} />
+                  <StyledNote>사진 속 계좌와 신고 정보 계좌가 일치하는 지 확인합니다.</StyledNote>
+                  {aiCheck === "mismatch" && (
+                    <StyledNote $error>사진 속 받는 계좌가 신고 정보 계좌와 상이합니다. 다시 올려주세요</StyledNote>
+                  )}
+                </StyledUploadGroup>
+                {aiCheck === "match" ? (
+                  <MainButton type="button" disabled>
+                    확인 완료
+                  </MainButton>
+                ) : (
+                  <MainButton
+                    variant="accent"
+                    type="button"
+                    disabled={images.length === 0 || aiCheck === "checking"}
+                    onClick={handleAiCheck}
+                  >
+                    AI로 확인하기
+                  </MainButton>
                 )}
-              </StyledUploadGroup>
-              {aiCheck === "match" ? (
-                <MainButton type="button" disabled>
-                  확인 완료
-                </MainButton>
-              ) : (
-                <MainButton
-                  variant="accent"
-                  type="button"
-                  disabled={images.length === 0 || aiCheck === "checking"}
-                  onClick={handleAiCheck}
-                >
-                  AI로 확인하기
-                </MainButton>
-              )}
-            </StyledCard>
+              </StyledCard>
+            )}
           </>
         )}
       </StyledContent>
