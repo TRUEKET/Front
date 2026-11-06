@@ -1,6 +1,6 @@
 import styled from "styled-components";
 import sparkleIcon from "../../../assets/icons/result_sparkle.svg";
-import ScanBottomSheet from "./ScanBottomSheet.jsx";
+import ScanBottomSheet from "../../../components/scan/ScanBottomSheet.jsx";
 
 // AI가 무엇을 근거로 판단하는지 (번호 순서대로 보여줌)
 const POLICY_SOURCES = [

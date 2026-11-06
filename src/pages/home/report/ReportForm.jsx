@@ -4,8 +4,8 @@ import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import { MOCK_AI_ACCOUNT_CHECK, MOCK_AI_CHECK_DELAY_MS, MOCK_REPORT_INFO } from "../../../mock/scanReport.js";
-import CaptureTiles from "./CaptureTiles.jsx";
-import ScanConfirmModal from "./ScanConfirmModal.jsx";
+import CaptureTiles from "../../../components/scan/CaptureTiles.jsx";
+import ScanConfirmModal from "../../../components/scan/ScanConfirmModal.jsx";
 
 // 신고 종류 탭 (suspect 의심 제보 / fraud 사기 신고)
 const REPORT_TYPES = [
@@ -195,7 +195,7 @@ const StyledBottomAction = styled.div`
 `;
 
 // 판독 결과를 바탕으로 의심 제보 또는 사기 신고를 등록하는 화면
-export default function ScanReport() {
+export default function ReportForm() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const [searchParams] = useSearchParams();
