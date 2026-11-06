@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import BackHeader from "../../components/header/BackHeader.jsx";
-import MainButton from "../../components/common/MainButton.jsx";
-import AccountSummaryCard from "../../components/common/AccountSummaryCard.jsx";
+import BackHeader from "../../../components/header/BackHeader.jsx";
+import MainButton from "../../../components/common/MainButton.jsx";
+import AccountSummaryCard from "../../../components/common/AccountSummaryCard.jsx";
 
 // 안내 카드 + 계좌 카드를 세로로 나열, line-height:1로 Figma의 lineHeight 100%에 맞춤
 const StyledContent = styled.div`

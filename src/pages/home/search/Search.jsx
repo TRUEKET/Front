@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
-import BackHeader from "../../components/header/BackHeader.jsx";
-import SearchResultBox from "../../components/common/SearchResultBox.jsx";
-import searchIcon from "../../assets/icons/home_search.svg";
-import { MOCK_RESULTS } from "../../mock/searchResults.js";
+import BackHeader from "../../../components/header/BackHeader.jsx";
+import SearchResultBox from "../../../components/common/SearchResultBox.jsx";
+import searchIcon from "../../../assets/icons/home_search.svg";
+import { MOCK_RESULTS } from "../../../mock/searchResults.js";
 
 const StyledContent = styled.div`
   display: flex;

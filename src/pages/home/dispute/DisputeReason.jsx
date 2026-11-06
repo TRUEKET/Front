@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import BackHeader from "../../components/header/BackHeader.jsx";
-import MainButton from "../../components/common/MainButton.jsx";
-import { MOCK_DISPUTE_REASONS } from "../../mock/disputeReason.js";
+import BackHeader from "../../../components/header/BackHeader.jsx";
+import MainButton from "../../../components/common/MainButton.jsx";
+import { MOCK_DISPUTE_REASONS } from "../../../mock/disputeReason.js";
 
 // line-height:1로 Figma의 lineHeight 100%에 맞춤
 const StyledContent = styled.div`
