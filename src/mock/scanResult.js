@@ -8,6 +8,7 @@ export const MOCK_SCAN_RESULTS = {
     reportCount: 0,
     account: "KB국민은행 987654-32-123456",
     phone: "01012345678",
+    sns: "@asdfghjkl",
     reportHistory: [
       { target: "KB국민은행 987654-32-123456", reportCount: 0, suspectCount: 0 },
       { target: "010-1234-5678", reportCount: 0, suspectCount: 0 },
@@ -29,6 +30,7 @@ export const MOCK_SCAN_RESULTS = {
     reportCount: 2,
     account: "KB국민은행 987654-32-123456",
     phone: "01012345678",
+    sns: "@asdfghjkl",
     reportHistory: [
       { target: "KB국민은행 987654-32-123456", reportCount: 0, suspectCount: 1 },
       { target: "010-1234-5678", reportCount: 0, suspectCount: 1 },
@@ -63,6 +65,7 @@ export const MOCK_SCAN_RESULTS = {
     reportCount: 4,
     account: "KB국민은행 987654-32-123456",
     phone: "01012345678",
+    sns: "@asdfghjkl",
     reportHistory: [
       { target: "KB국민은행 987654-32-123456", reportCount: 1, suspectCount: 1 },
       { target: "010-1234-5678", reportCount: 1, suspectCount: 1 },
