@@ -13,6 +13,7 @@ import DisputeEvidence from "./pages/home/dispute/DisputeEvidence.jsx";
 import DisputeComplete from "./pages/home/dispute/DisputeComplete.jsx";
 import Scan from "./pages/home/scan/Scan.jsx";
 import ScanLoading from "./pages/home/scan/ScanLoading.jsx";
+import ScanResult from "./pages/home/scan/ScanResult.jsx";
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route path="/search/dispute/complete" element={<DisputeComplete />} />
           <Route path="/scan" element={<Scan />} />
           <Route path="/scan/loading" element={<ScanLoading />} />
+          <Route path="/scan/result" element={<ScanResult />} />
         </Route>
       </Routes>
     </BrowserRouter>
