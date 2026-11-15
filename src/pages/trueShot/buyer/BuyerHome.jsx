@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import TrueShotHeader from "../../../components/trueShot/TrueShotHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import RequestItem from "./RequestItem.jsx";
-import { createTrueShotRequest, getTrueShotRequests } from "../../../api/trueShot.js";
+import { createTrueShotRequest, getRequestStatus, getTrueShotRequests } from "../../../api/trueShot.js";
 
 // 진행방식 3단계 (desc가 있으면 제목 아래 설명)
 const PROCESS_STEPS = [
@@ -142,12 +142,18 @@ const StyledNote = styled.p`
 
 // 트루샷 탭 메인 (구매자): 서비스 소개 + 진행방식 + 요청하기 + 내가 요청한 목록
 export default function BuyerHome() {
-  const [requests, setRequests] = useState(getTrueShotRequests);
+  const navigate = useNavigate();
+  const requests = getTrueShotRequests();
 
-  // 새 요청을 만들어 목록 맨 위에 추가 (TODO: 요청 상세 화면 작업 때 상세로 이동 연결)
+  // 새 요청을 만들어(목록 맨 위에 추가됨) 바로 요청 상세로 이동
   const handleRequest = () => {
-    createTrueShotRequest();
-    setRequests(getTrueShotRequests());
+    const request = createTrueShotRequest();
+    navigate(`/trueshot/requests/${request.id}`);
+  };
+
+  // 촬영 대기 → 요청 상세 (TODO: 인증 성공·실패 → 결과 화면 작업 때 연결)
+  const handleItemClick = (request) => {
+    if (getRequestStatus(request) === "pending") navigate(`/trueshot/requests/${request.id}`);
   };
 
   return (
@@ -188,9 +194,8 @@ export default function BuyerHome() {
 
         {requests.length > 0 ? (
           <StyledList>
-            {/* TODO: 요청 상세·결과 화면 작업 때 카드 누르면 이동 연결 */}
             {requests.map((request) => (
-              <RequestItem key={request.id} request={request} />
+              <RequestItem key={request.id} request={request} onClick={() => handleItemClick(request)} />
             ))}
           </StyledList>
         ) : (
