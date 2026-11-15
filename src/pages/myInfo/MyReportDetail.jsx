@@ -7,12 +7,12 @@ import ScanConfirmModal from "../../components/scan/ScanConfirmModal.jsx";
 import ReportTypeBadge from "../../components/myInfo/ReportTypeBadge.jsx";
 import { REPORT_STATUS_LABEL } from "../../components/myInfo/reportTypeStyle.js";
 import TalkDetailSheet from "../home/scan/TalkDetailSheet.jsx";
-import { BehaviorChip, PhotoTag, TalkBubble, TalkDashedLine, TalkLine } from "../home/scan/ScanTalkParts.jsx";
+import { TalkDashedLine, TalkLine } from "../home/scan/ScanTalkParts.jsx";
+import TalkCard from "../../components/scan/TalkCard.jsx";
 import DisputeHistorySheet from "./DisputeHistorySheet.jsx";
 import { deleteReport, getMyReport, keepReport } from "../../api/myReports.js";
 import phoneIcon from "../../assets/icons/detail_phone.svg";
 import xAccountIcon from "../../assets/icons/detail_x_account.svg";
-import chevronIcon from "../../assets/icons/box_chevron_right.svg";
 
 const RELATED_INFO_ICONS = {
   phone: phoneIcon,
@@ -182,47 +182,6 @@ const StyledRelatedValue = styled.p`
   font-size: 16px;
 `;
 
-// 주요 대화 카드 윗줄: 제목 묶음 + 자세히 보기 버튼 (아래쪽 맞춤)
-const StyledTalkHeader = styled.div`
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-`;
-
-// 자세히 보기 버튼 (왼쪽을 보는 화살표 원본을 뒤집어 오른쪽을 보게 함)
-const StyledMoreButton = styled.button`
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
-  align-items: center;
-  padding: 0;
-  border: none;
-  background: none;
-  color: #4e4a57;
-  font-family: "Pretendard", sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-
-  img {
-    display: block;
-    transform: scaleX(-1);
-  }
-`;
-
-// 대화 한 건 안의 작은 묶음 (사진 태그 + 말풍선 / 행동 칩 + 이유)
-const StyledTalkItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const StyledReason = styled.p`
-  color: #4e4a57;
-  font-size: 12px;
-  font-weight: 400;
-`;
-
 // 이의제기 안내 박스 + 유지·삭제 버튼
 const StyledDispute = styled.div`
   display: flex;
@@ -340,34 +299,11 @@ export default function MyReportDetail() {
           ))}
         </StyledCard>
 
-        <StyledCard $gap={12}>
-          <StyledTalkHeader>
-            <StyledCardTitleGroup>
-              <StyledCardTitle>주요 대화</StyledCardTitle>
-              <StyledCardSub>
-                사진 {photoCount}장 중 {conversations.length}장에서 사기 의심 정황을 찾았어요.
-              </StyledCardSub>
-            </StyledCardTitleGroup>
-            <StyledMoreButton type="button" onClick={() => setIsTalkDetailOpen(true)}>
-              자세히 보기
-              <img src={chevronIcon} alt="" />
-            </StyledMoreButton>
-          </StyledTalkHeader>
-          {conversations.map((talk) => (
-            <Fragment key={`${talk.photo}-${talk.behavior}`}>
-              <TalkLine />
-              <StyledTalkItem>
-                <PhotoTag photo={talk.photo} />
-                <TalkBubble level={talk.level}>{talk.text}</TalkBubble>
-              </StyledTalkItem>
-              <TalkDashedLine />
-              <StyledTalkItem>
-                <BehaviorChip level={talk.level}>{talk.behavior}</BehaviorChip>
-                <StyledReason>{talk.reason}</StyledReason>
-              </StyledTalkItem>
-            </Fragment>
-          ))}
-        </StyledCard>
+        <TalkCard
+          conversations={conversations}
+          summary={`사진 ${photoCount}장 중 ${conversations.length}장에서 사기 의심 정황을 찾았어요.`}
+          onMore={() => setIsTalkDetailOpen(true)}
+        />
 
         {dispute?.kind === "pending" && (
           <StyledDispute>
