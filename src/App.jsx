@@ -19,6 +19,7 @@ import ReportForm from "./pages/home/report/ReportForm.jsx";
 import Auth from "./pages/auth/Auth.jsx";
 import MyReports from "./pages/myInfo/MyReports.jsx";
 import MyReportDetail from "./pages/myInfo/MyReportDetail.jsx";
+import AccountEdit from "./pages/myInfo/AccountEdit.jsx";
 import BuyerHome from "./pages/trueShot/buyer/BuyerHome.jsx";
 import RequestDetail from "./pages/trueShot/buyer/RequestDetail.jsx";
 import RequestResult from "./pages/trueShot/buyer/RequestResult.jsx";
@@ -50,6 +51,7 @@ function App() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/myinfo/reports" element={<MyReports />} />
           <Route path="/myinfo/reports/:id" element={<MyReportDetail />} />
+          <Route path="/myinfo/account" element={<AccountEdit />} />
           <Route path="/trueshot" element={<BuyerHome />} />
           <Route path="/trueshot/requests/:id" element={<RequestDetail />} />
           <Route path="/trueshot/requests/:id/result" element={<RequestResult />} />
