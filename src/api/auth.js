@@ -50,6 +50,28 @@ const writeStorage = (key, value) => {
   }
 };
 
+// 로그인 상태가 바뀔 때 보내는 알림 (헤더 등이 화면 이동 없이 바로 바뀌도록)
+const AUTH_CHANGE_EVENT = "trueket-auth-change";
+
+// 로그인 사용자 저장 + 알림
+const setCurrentUser = (user) => {
+  writeStorage(CURRENT_USER_KEY, user);
+  window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+};
+
+// 로그인 상태 변경 구독 (다른 탭에서 바뀐 것도 받음), 구독 해제 함수를 돌려줌
+export function subscribeAuthChange(callback) {
+  const handleStorage = (e) => {
+    if (e.key === null || e.key === CURRENT_USER_KEY) callback();
+  };
+  window.addEventListener(AUTH_CHANGE_EVENT, callback);
+  window.addEventListener("storage", handleStorage);
+  return () => {
+    window.removeEventListener(AUTH_CHANGE_EVENT, callback);
+    window.removeEventListener("storage", handleStorage);
+  };
+}
+
 // 화면에 저장할 사용자 정보 (비밀번호 제외)
 const toUser = ({ email, phone }) => ({ email, phone });
 
@@ -69,7 +91,7 @@ export async function signup({ email, password, phone }) {
   const others = accounts.filter((item) => item.email !== account.email);
 
   writeStorage(ACCOUNTS_KEY, [...others, account]);
-  writeStorage(CURRENT_USER_KEY, toUser(account));
+  setCurrentUser(toUser(account));
   return toUser(account);
 }
 
@@ -80,18 +102,21 @@ export async function login({ email, password }) {
 
   if (!account) throw new Error("이메일 또는 비밀번호가 일치하지 않습니다.");
 
-  writeStorage(CURRENT_USER_KEY, toUser(account));
+  setCurrentUser(toUser(account));
   return toUser(account);
 }
 
 export function logout() {
-  writeStorage(CURRENT_USER_KEY, null);
+  setCurrentUser(null);
 }
 
 // 로그인한 사용자 ({ email, phone }), 비로그인이면 null
 export function getCurrentUser() {
   return readStorage(CURRENT_USER_KEY, null);
 }
+
+// 010-1234-5678 → 010-****-5678 (내 정보 팝업)
+export const maskPhone = (phone = "") => phone.replace(/^(\d{3})-?\d{3,4}-?(\d{4})$/, "$1-****-$2");
 
 // 헤더에 보여줄 전화번호 뒷자리 4개
 export const getPhoneLast4 = (phone = "") => phone.replace(/\D/g, "").slice(-4);
@@ -113,7 +138,7 @@ const updateCurrentAccount = (patch) => {
     ACCOUNTS_KEY,
     accounts.map((item) => (item.email === user.email ? updated : item)),
   );
-  writeStorage(CURRENT_USER_KEY, toUser(updated));
+  setCurrentUser(toUser(updated));
   return toUser(updated);
 };
 
