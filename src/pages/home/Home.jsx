@@ -170,7 +170,7 @@ export default function Home() {
 
       <StyledCtaSection>
         <StyledDivider />
-        <StyledCtaCard to="/trueshot">
+        <StyledCtaCard to="/scan">
           <StyledCtaTexts>
             <StyledCtaTitle>대화 넣고 판독하기</StyledCtaTitle>
             <StyledCtaDesc>DM·카톡 캡쳐본을 넣으면 근거를 짚어줘요</StyledCtaDesc>
