@@ -4,6 +4,7 @@ import MainButton from "../../components/common/MainButton.jsx";
 import FormField from "../../components/auth/FormField.jsx";
 import PhoneVerify from "../../components/auth/PhoneVerify.jsx";
 import AgreeCheckbox from "../../components/auth/AgreeCheckbox.jsx";
+import PrivacyPolicySheet from "./PrivacyPolicySheet.jsx";
 import { StyledBottomAction, StyledFields } from "../../components/auth/authStyles.js";
 import { EMAIL_ERROR, PASSWORD_ERROR, isValidEmail, isValidPassword, signup } from "../../api/auth.js";
 
@@ -17,6 +18,13 @@ export default function SignupForm() {
   const [isVerified, setIsVerified] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeAge, setAgreeAge] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  // 동의 시트에서 "동의하고 닫기"를 누르면 개인정보 체크박스 자동 체크
+  const handleAgreeFromSheet = () => {
+    setAgreePrivacy(true);
+    setIsSheetOpen(false);
+  };
 
   const emailValid = isValidEmail(email);
   const passwordValid = isValidPassword(password);
@@ -62,6 +70,7 @@ export default function SignupForm() {
           checked={agreePrivacy}
           onChange={setAgreePrivacy}
           linkText="개인정보 수집·이용 동의 자세히 보기 →"
+          onLinkClick={() => setIsSheetOpen(true)}
         >
           개인정보 정책에 동의합니다.
         </AgreeCheckbox>
@@ -75,6 +84,8 @@ export default function SignupForm() {
           회원가입하기
         </MainButton>
       </StyledBottomAction>
+
+      {isSheetOpen && <PrivacyPolicySheet onClose={() => setIsSheetOpen(false)} onAgree={handleAgreeFromSheet} />}
     </form>
   );
 }
