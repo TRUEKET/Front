@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import styled from "styled-components";
-import MainButton from "../../../components/common/MainButton.jsx";
+import MainButton from "../common/MainButton.jsx";
 
 // 화면 전체를 덮는 반투명 배경
 const StyledOverlay = styled.div`

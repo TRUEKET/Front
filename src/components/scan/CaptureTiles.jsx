@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import styled from "styled-components";
-import removeIcon from "../../../assets/icons/dispute_photo_sample.svg";
-import uploadIcon from "../../../assets/icons/dispute_upload.svg";
+import removeIcon from "../../assets/icons/dispute_photo_sample.svg";
+import uploadIcon from "../../assets/icons/dispute_upload.svg";
 
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -64,7 +64,6 @@ const StyledAddTile = styled.label`
   font-family: "Pretendard", sans-serif;
   font-size: 16.178px;
   font-weight: 500;
-  line-height: normal;
   cursor: pointer;
 
   input {

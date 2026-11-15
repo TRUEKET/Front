@@ -5,8 +5,8 @@ import BackHeader from "../../../components/header/BackHeader.jsx";
 import ScanBox from "../../../components/common/ScanBox.jsx";
 import Button from "../../../components/common/Button.jsx";
 import { MOCK_SCAN_RESULTS } from "../../../mock/scanResult.js";
-import ScanConfirmModal from "./ScanConfirmModal.jsx";
-import ReportHistorySheet from "./ReportHistorySheet.jsx";
+import ScanConfirmModal from "../../../components/scan/ScanConfirmModal.jsx";
+import ReportHistorySheet from "../../../components/scan/ReportHistorySheet.jsx";
 import AiPolicySheet from "./AiPolicySheet.jsx";
 import TalkDetailSheet from "./TalkDetailSheet.jsx";
 import { BehaviorChip, PhotoTag, TalkBubble, TalkDashedLine, TalkLine } from "./ScanTalkParts.jsx";
@@ -52,6 +52,7 @@ const STATUS_CONFIG = {
 // 연동 전에는 ?status=safe|caution|danger 로 볼 결과를 고름 (없으면 안전)
 const DEFAULT_STATUS = "safe";
 
+// 화면 전체 세로 배치 (요소 사이 16px, 가운데 정렬), 글자 행간은 Figma와 같은 normal
 const StyledContent = styled.div`
   display: flex;
   flex-direction: column;
@@ -62,6 +63,7 @@ const StyledContent = styled.div`
   line-height: normal;
 `;
 
+// 맨 위 '거래 종류 - 양도' 알약 모양 칩
 const StyledTradeType = styled.p`
   margin: 0;
   padding: 8px 12px;
@@ -74,6 +76,7 @@ const StyledTradeType = styled.p`
   white-space: nowrap;
 `;
 
+// 결과 배지 + 결과 제목 문구 묶음
 const StyledHero = styled.div`
   display: flex;
   flex-direction: column;
@@ -82,6 +85,7 @@ const StyledHero = styled.div`
   width: 100%;
 `;
 
+// 아이콘 + 상태 이름 묶음, 상태 색으로 은은하게 빛나는 그림자($glow)를 줌
 const StyledBadge = styled.div`
   display: flex;
   flex-direction: column;
@@ -90,11 +94,12 @@ const StyledBadge = styled.div`
   filter: drop-shadow(0 0 5px ${({ $glow }) => $glow});
 `;
 
+// 안전일 때 쓰는 체크 원 아이콘
 const StyledBadgeIcon = styled.img`
   display: block;
 `;
 
-// 의심·위험은 색 원 안에 느낌표
+// 의심, 위험일 때 쓰는 색 원 + 느낌표 (느낌표를 원 가운데에 맞추려고 위에 5px 여백)
 const StyledBadgeCircle = styled.div`
   display: flex;
   align-items: center;
@@ -111,6 +116,7 @@ const StyledBadgeCircle = styled.div`
   font-weight: 700;
 `;
 
+// 상태 이름 (안전 / 의심 / 위험), 상태 색($color)으로 표시
 const StyledBadgeLabel = styled.p`
   margin: 0;
   color: ${({ $color }) => $color};
@@ -119,6 +125,7 @@ const StyledBadgeLabel = styled.p`
   font-weight: 700;
 `;
 
+// 결과 제목 + 안내 문구 묶음
 const StyledHeadlineGroup = styled.div`
   display: flex;
   flex-direction: column;
@@ -128,6 +135,7 @@ const StyledHeadlineGroup = styled.div`
   text-align: center;
 `;
 
+// 상태별 결과 제목 (예: 사기 가능성이 높아요)
 const StyledHeadline = styled.p`
   margin: 0;
   color: #191919;
@@ -136,6 +144,7 @@ const StyledHeadline = styled.p`
   font-weight: 500;
 `;
 
+// '트루켓은 방향을 알려드릴 뿐이에요' 안내 문구
 const StyledHeadlineSub = styled.p`
   margin: 0;
   color: #4e4a57;
@@ -158,12 +167,14 @@ const StyledCard = styled.section`
   text-align: left;
 `;
 
+// 카드 윗줄: 왼쪽 제목, 오른쪽 아이콘 버튼
 const StyledCardHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
 `;
 
+// 반짝이 아이콘 + 'AI가 확인한 것' 보라색 제목 (아이콘과 글자 아래쪽 맞춤)
 const StyledAiTitle = styled.div`
   display: flex;
   gap: 8px;
@@ -196,6 +207,7 @@ const StyledInfoButton = styled.button`
   }
 `;
 
+// 카드 안 요약 문구 ($size로 글자 크기 지정, 기본 12px)
 const StyledCardText = styled.p`
   margin: 0;
   color: #4e4a57;
@@ -223,12 +235,14 @@ const StyledSafeNotice = styled.p`
   text-align: center;
 `;
 
+// 주요 대화 카드 윗줄: 제목 묶음 + 자세히 보기 버튼 (아래쪽 맞춤)
 const StyledTalkHeader = styled.div`
   display: flex;
   gap: 8px;
   align-items: flex-end;
 `;
 
+// '주요 대화' 제목 + 요약 문구, 자세히 보기 버튼을 뺀 나머지 폭을 모두 차지
 const StyledTalkTitleGroup = styled.div`
   display: flex;
   flex: 1 0 0;
@@ -237,6 +251,7 @@ const StyledTalkTitleGroup = styled.div`
   min-width: 0;
 `;
 
+// '주요 대화' 제목
 const StyledTalkTitle = styled.p`
   margin: 0;
   color: #4e4a57;
@@ -244,6 +259,7 @@ const StyledTalkTitle = styled.p`
   font-weight: 700;
 `;
 
+// 자세히 보기 버튼 (화살표 아이콘을 좌우로 뒤집어 방향을 맞춤), 누르면 대화 자세히 보기 바텀시트
 const StyledMoreButton = styled.button`
   display: flex;
   flex-shrink: 0;
@@ -264,12 +280,14 @@ const StyledMoreButton = styled.button`
   }
 `;
 
+// 대화 한 건 안의 작은 묶음 (사진 태그 + 말풍선 / 행동 칩 + 이유)
 const StyledTalkItem = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
 `;
 
+// 그 행동을 사기 의심으로 본 이유 설명
 const StyledReason = styled.p`
   margin: 0;
   color: #4e4a57;
@@ -282,6 +300,7 @@ const StyledOriginalButton = styled(Button)`
   align-self: flex-start;
 `;
 
+// 보라색 '판매자에게 트루샷 요청하기' 버튼 (제목 + 설명 두 줄)
 const StyledTrueshotButton = styled.button`
   display: flex;
   flex-direction: column;
@@ -298,16 +317,19 @@ const StyledTrueshotButton = styled.button`
   cursor: pointer;
 `;
 
+// 트루샷 버튼 제목
 const StyledTrueshotTitle = styled.span`
   font-size: 20px;
   font-weight: 700;
 `;
 
+// 트루샷 버튼 아래 설명 (실시간 사진 인증 기능)
 const StyledTrueshotSub = styled.span`
   font-size: 12px;
   font-weight: 500;
 `;
 
+// 의심일 때만 신고 버튼 위에 뜨는 '이미 금전적 피해를 봤다면?' 문구
 const StyledReportHint = styled.p`
   margin: 0;
   color: #191919;
@@ -315,6 +337,7 @@ const StyledReportHint = styled.p`
   font-weight: 500;
 `;
 
+// AI 결과는 참고용이라는 하단 안내 문구
 const StyledDisclaimer = styled.p`
   margin: 0;
   color: #4e4a57;
@@ -323,6 +346,7 @@ const StyledDisclaimer = styled.p`
   text-align: center;
 `;
 
+// 피드백 버튼 줄 + 감사 문구 묶음
 const StyledFeedback = styled.div`
   display: flex;
   flex-direction: column;
@@ -330,6 +354,7 @@ const StyledFeedback = styled.div`
   align-items: center;
 `;
 
+// 도움이 되었어요 / 결과가 이상해요 두 버튼을 257px 폭 양끝에 배치
 const StyledFeedbackRow = styled.div`
   display: flex;
   align-items: center;
@@ -337,6 +362,7 @@ const StyledFeedbackRow = styled.div`
   width: 257px;
 `;
 
+// 피드백 버튼, 선택되면($selected) 검정 배경 + 흰 글자로 바뀜
 const StyledFeedbackButton = styled.button`
   display: flex;
   gap: 8px;
@@ -359,11 +385,12 @@ const StyledFeedbackButton = styled.button`
   }
 `;
 
-// 선택된 아이콘이 없는 '결과가 이상해요'는 아이콘을 흰색으로 바꿔 표시
+// '결과가 이상해요'는 선택용 흰 아이콘 파일이 없어서, 선택됐을 때 filter로 아이콘을 흰색으로 바꿈
 const StyledWhiteIcon = styled.img`
   filter: brightness(0) invert(1);
 `;
 
+// 피드백 버튼을 누르면 아래에 뜨는 감사 문구
 const StyledThanks = styled.p`
   margin: 0;
   color: #4e4a57;

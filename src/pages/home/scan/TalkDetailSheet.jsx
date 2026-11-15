@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import styled from "styled-components";
-import ScanBottomSheet from "./ScanBottomSheet.jsx";
+import ScanBottomSheet from "../../../components/scan/ScanBottomSheet.jsx";
 import { BehaviorChip, PhotoTag, TalkBubble, TalkDashedLine, TalkLine } from "./ScanTalkParts.jsx";
 
 // 시트 위쪽을 헤더 아래(화면 위에서 62px)까지만 올림

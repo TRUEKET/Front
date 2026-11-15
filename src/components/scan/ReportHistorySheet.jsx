@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import Button from "../../../components/common/Button.jsx";
+import Button from "../common/Button.jsx";
 import ScanBottomSheet from "./ScanBottomSheet.jsx";
 
 const StyledTitle = styled.p`
