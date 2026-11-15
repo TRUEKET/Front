@@ -17,6 +17,76 @@ export const SUCCESS_REASONS = {
   notes: ["공연명·날짜·좌석은 사진을 보고 직접 확인해 주세요", "돈을 보낸 뒤의 취소·중복 판매는 막을 수 없어요"],
 };
 
+// 판매자 촬영 제한 시간(초): 1차 3분, 2차 1분
+export const FIRST_SHOT_SECONDS = 180;
+export const SECOND_SHOT_SECONDS = 60;
+
+// 2차 지시에 쓰는 손 모양 (MediaPipe GestureRecognizer가 인식하는 이름 → 문구)
+const MISSION_GESTURES = {
+  Closed_Fist: "주먹 쥐고",
+  Open_Palm: "손바닥 펴고",
+  Pointing_Up: "검지로 위를 가리키고",
+  Thumb_Up: "엄지 척하고",
+  Victory: "손가락 브이하고",
+  ILoveYou: "엄지·검지·새끼손가락 펴고",
+};
+
+// 손 위치 (예매 화면 기준, 사진에서 보이는 방향)
+const MISSION_SIDES = { left: "좌측", right: "우측" };
+
+// 2차 무작위 지시 목록 = 손 모양 6 × 좌우 2 (판매자가 1차 인증을 시작할 때 하나를 골라 요청에 저장)
+// text: 화면 문구 (\n은 제목 줄바꿈 위치), gesture·side: 판독 때 기대하는 손 모양·위치
+export const SECOND_MISSIONS = Object.entries(MISSION_GESTURES).flatMap(([gesture, action]) =>
+  Object.entries(MISSION_SIDES).map(([side, sideLabel]) => ({
+    text: `예매 화면 ${sideLabel}에\n${action} 촬영`,
+    gesture,
+    side,
+  })),
+);
+
+// AI 판독 목업이 실패할 때 판매자에게 보여줄 이유 ({code}는 요청의 인증코드)
+export const SELLER_FAIL_REASONS = {
+  1: [
+    { passed: true, text: "알아볼 수 있는 화질이에요" },
+    { passed: false, text: "인증코드 {code}가 아니에요" },
+  ],
+  2: [
+    { passed: true, text: "알아볼 수 있는 화질이에요" },
+    { passed: false, text: "정해진 지시에 따르지 못했어요" },
+  ],
+};
+
+// 최종 실패 시 저장하는 이유 (seller: 판매자 화면 / buyer: 구매자 결과 화면)
+export const SESSION_FAIL_REASONS = {
+  // 2차 AI 판독 실패
+  secondJudge: {
+    seller: SELLER_FAIL_REASONS[2],
+    buyer: [
+      { passed: true, text: "첫번째 사진 인증 성공" },
+      { passed: false, text: "두 번째 사진이 지시를 따르지 않음" },
+    ],
+  },
+  // 1차 3분 초과
+  firstTimeout: {
+    seller: [{ passed: false, text: "3분 타임어택에 실패했어요" }],
+    buyer: [{ passed: false, text: "첫번째 사진이 시간 내에 전송되지 않음" }],
+  },
+  // 2차 1분 초과
+  secondTimeout: {
+    seller: [{ passed: false, text: "1분 타임어택에 실패했어요" }],
+    buyer: [
+      { passed: true, text: "첫번째 사진 인증 성공" },
+      { passed: false, text: "두 번째 사진이 시간 내에 전송되지 않음" },
+    ],
+  },
+};
+
+// 구매자 요청이 30분 지나 만료된 세션을 판매자가 열었을 때
+export const EXPIRED_REASONS = [{ passed: false, text: "시간 만료" }];
+
+// 판독 로딩을 보여주는 시간(ms)
+export const JUDGE_LOADING_MS = 2000;
+
 const minutesLater = (date, minutes) => new Date(date.getTime() + minutes * 60 * 1000);
 
 // localStorage가 비어 있을 때 넣는 처음 요청 3건 (피그마 목록)

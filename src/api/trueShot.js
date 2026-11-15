@@ -4,6 +4,8 @@
 import {
   MOCK_MY_PHONE_LAST4,
   REQUEST_EXPIRE_MINUTES,
+  SECOND_MISSIONS,
+  SELLER_FAIL_REASONS,
   SELLER_MESSAGE,
   SUCCESS_REASONS,
   createMockRequests,
@@ -154,3 +156,69 @@ export function getRequestProgress(request, now = Date.now()) {
     { label: "인증 완료", done: getRequestStatus(request, now) !== "pending" },
   ];
 }
+
+// ---------- 판매자 ----------
+
+// 요청 일부 값 바꿔서 저장하고, 바뀐 요청을 돌려줌
+const updateTrueShotRequest = (id, patch) => {
+  let updated = null;
+  writeStorage(
+    loadRequests().map((request) => {
+      if (request.id !== id) return request;
+      updated = { ...request, ...patch };
+      return updated;
+    }),
+  );
+  return updated;
+};
+
+// 판매자가 "인증 시작하기"를 누름: 1차 타이머 시작 + 2차 무작위 지시를 하나 골라 저장
+export function startSellerSession(id) {
+  return updateTrueShotRequest(id, {
+    firstStartedAt: new Date().toISOString(),
+    secondMission: SECOND_MISSIONS[Math.floor(Math.random() * SECOND_MISSIONS.length)],
+  });
+}
+
+// AI 판독 (목업: 항상 통과, forceFail이면 실패 이유와 함께 실패)
+// TODO: 판독 API 연동 시 사진을 보내고 결과를 받아오도록 교체
+export function judgeSellerShot(request, round, { forceFail = false } = {}) {
+  if (!forceFail) return { passed: true, reasons: [] };
+
+  return {
+    passed: false,
+    reasons: SELLER_FAIL_REASONS[round].map((reason) => ({ ...reason, text: reason.text.replace("{code}", request.code) })),
+  };
+}
+
+// 1차 가리기 저장: 가린 사진 1 저장 + 구매자 진행 단계 '첫번째 촬영' 체크 + 2차 타이머 시작
+export function saveFirstShot(id, photo) {
+  const now = new Date().toISOString();
+  return updateTrueShotRequest(id, { firstShotAt: now, secondStartedAt: now, photos: [photo] });
+}
+
+// 최종 실패 저장 (reasons: { seller, buyer } 실패 이유) → 구매자 결과가 '인증 실패'로 바뀜
+export function failSellerSession(id, reasons) {
+  return updateTrueShotRequest(id, {
+    result: "failed",
+    failReasons: reasons.buyer,
+    sellerFailReasons: reasons.seller,
+  });
+}
+
+// 판매자 결과 화면의 실패 이유 (판매자용 이유가 없는 예전 데이터는 구매자용 이유로 대신)
+export const getSellerFailReasons = (request) => request.sellerFailReasons ?? getFailReasons(request);
+
+// 2차 가리기 후 요청자에게 전송: 가린 사진 2 저장 + '두번째 촬영'·'인증 완료' 체크 → 구매자 결과 '인증 성공'
+export function completeSellerSession(id, photo) {
+  const request = getTrueShotRequest(id);
+  return updateTrueShotRequest(id, {
+    secondShotAt: new Date().toISOString(),
+    photos: [request.photos?.[0] ?? null, photo],
+    result: "success",
+  });
+}
+
+// 2차 지시 문구 (예전 데이터는 문구만 문자열로 저장돼 있음)
+export const getSecondMissionText = (request) =>
+  typeof request.secondMission === "string" ? request.secondMission : (request.secondMission?.text ?? "");
