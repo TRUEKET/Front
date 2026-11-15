@@ -5,8 +5,17 @@ import {
   MOCK_MY_PHONE_LAST4,
   REQUEST_EXPIRE_MINUTES,
   SELLER_MESSAGE,
+  SUCCESS_REASONS,
   createMockRequests,
 } from "../mock/trueShot.js";
+import samplePhoto1 from "../assets/images/trueshot_sample_1.png";
+import samplePhoto2 from "../assets/images/trueshot_sample_2.png";
+
+// 목업 사진 이름 → 이미지 주소 (빌드마다 주소가 바뀌어 localStorage엔 이름만 저장)
+const MOCK_PHOTOS = {
+  "sample-1": samplePhoto1,
+  "sample-2": samplePhoto2,
+};
 
 const REQUESTS_KEY = "trueket_trueshot_requests";
 
@@ -108,6 +117,20 @@ export const getSellerMessage = () => SELLER_MESSAGE;
 // 클립보드에 복사할 내용: 안내 문구 + 판매자 링크
 export async function copySellerMessage(id) {
   await navigator.clipboard.writeText(`${SELLER_MESSAGE}\n${getSellerLink(id)}`);
+}
+
+// 판매자 촬영 사진 2장의 이미지 주소 (아직 없으면 null → 화면에서 회색 자리 표시)
+export function getShotPhotos(request) {
+  const photos = request.photos ?? [];
+  return [0, 1].map((index) => MOCK_PHOTOS[photos[index]] ?? photos[index] ?? null);
+}
+
+// 성공 이유 (인증코드 줄에 요청의 코드를 넣음)
+export function getSuccessReasons(request) {
+  return {
+    checks: SUCCESS_REASONS.checks.map((text) => text.replace("{code}", request.code)),
+    notes: SUCCESS_REASONS.notes,
+  };
 }
 
 // 진행 단계 4개 (인증 완료는 성공·실패·만료 모두 완료로 봄)

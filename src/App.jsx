@@ -18,6 +18,7 @@ import ReportResult from "./pages/home/report/ReportResult.jsx";
 import ReportForm from "./pages/home/report/ReportForm.jsx";
 import BuyerHome from "./pages/trueShot/buyer/BuyerHome.jsx";
 import RequestDetail from "./pages/trueShot/buyer/RequestDetail.jsx";
+import RequestResult from "./pages/trueShot/buyer/RequestResult.jsx";
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
           <Route path="/report/form" element={<ReportForm mode="report" />} />
           <Route path="/trueshot" element={<BuyerHome />} />
           <Route path="/trueshot/requests/:id" element={<RequestDetail />} />
+          <Route path="/trueshot/requests/:id/result" element={<RequestResult />} />
         </Route>
       </Routes>
     </BrowserRouter>
