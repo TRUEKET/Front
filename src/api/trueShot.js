@@ -4,6 +4,7 @@
 import {
   MOCK_MY_PHONE_LAST4,
   REQUEST_EXPIRE_MINUTES,
+  SECOND_MISSIONS,
   SELLER_MESSAGE,
   SUCCESS_REASONS,
   createMockRequests,
@@ -153,4 +154,27 @@ export function getRequestProgress(request, now = Date.now()) {
     { label: "판매자의 두번째 촬영", done: Boolean(request.secondShotAt) },
     { label: "인증 완료", done: getRequestStatus(request, now) !== "pending" },
   ];
+}
+
+// ---------- 판매자 ----------
+
+// 요청 일부 값 바꿔서 저장하고, 바뀐 요청을 돌려줌
+const updateTrueShotRequest = (id, patch) => {
+  let updated = null;
+  writeStorage(
+    loadRequests().map((request) => {
+      if (request.id !== id) return request;
+      updated = { ...request, ...patch };
+      return updated;
+    }),
+  );
+  return updated;
+};
+
+// 판매자가 "인증 시작하기"를 누름: 1차 타이머 시작 + 2차 무작위 지시를 하나 골라 저장
+export function startSellerSession(id) {
+  return updateTrueShotRequest(id, {
+    firstStartedAt: new Date().toISOString(),
+    secondMission: SECOND_MISSIONS[Math.floor(Math.random() * SECOND_MISSIONS.length)],
+  });
 }

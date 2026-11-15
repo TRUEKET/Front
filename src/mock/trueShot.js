@@ -17,6 +17,19 @@ export const SUCCESS_REASONS = {
   notes: ["공연명·날짜·좌석은 사진을 보고 직접 확인해 주세요", "돈을 보낸 뒤의 취소·중복 판매는 막을 수 없어요"],
 };
 
+// 판매자 촬영 제한 시간(초): 1차 3분, 2차 1분
+export const FIRST_SHOT_SECONDS = 180;
+export const SECOND_SHOT_SECONDS = 60;
+
+// 2차 무작위 지시 목록 (판매자가 1차 인증을 시작할 때 하나를 골라 요청에 저장)
+export const SECOND_MISSIONS = [
+  "예매 화면 우측에 손가락 브이하고 촬영",
+  "예매 화면 좌측에 주먹 쥔 손과 함께 촬영",
+  "예매 화면 아래에 손바닥 펴고 촬영",
+  "예매 화면 위에 엄지 척하고 촬영",
+  "예매 화면 우측에 손가락 세 개 펴고 촬영",
+];
+
 const minutesLater = (date, minutes) => new Date(date.getTime() + minutes * 60 * 1000);
 
 // localStorage가 비어 있을 때 넣는 처음 요청 3건 (피그마 목록)
