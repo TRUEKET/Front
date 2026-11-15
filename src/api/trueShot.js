@@ -2,7 +2,6 @@
 // TODO: 트루샷 API 연동 시 각 함수 안쪽만 실제 요청으로 바꾸면 됨 (화면은 이 파일의 함수만 사용)
 // 지금은 목업: 요청 목록을 localStorage에 저장 (새로고침·새 탭에서도 같은 요청을 찾을 수 있게)
 import {
-  MOCK_MY_PHONE_LAST4,
   REQUEST_EXPIRE_MINUTES,
   SECOND_MISSIONS,
   SELLER_FAIL_REASONS,
@@ -56,11 +55,6 @@ const createCode = () =>
   Array.from({ length: 4 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join("");
 
 const createId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-
-// 트루샷 헤더에 보여줄 내 전화번호 뒷자리
-export function getMyPhoneLast4() {
-  return MOCK_MY_PHONE_LAST4;
-}
 
 // 요청 목록 (최신 순)
 export function getTrueShotRequests() {
