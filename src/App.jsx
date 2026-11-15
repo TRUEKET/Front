@@ -18,6 +18,7 @@ import Report from "./pages/home/report/Report.jsx";
 import ReportResult from "./pages/home/report/ReportResult.jsx";
 import ReportForm from "./pages/home/report/ReportForm.jsx";
 import MyReports from "./pages/myInfo/MyReports.jsx";
+import MyReportDetail from "./pages/myInfo/MyReportDetail.jsx";
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
           <Route path="/report/result" element={<ReportResult />} />
           <Route path="/report/form" element={<ReportForm mode="report" />} />
           <Route path="/myinfo/reports" element={<MyReports />} />
+          <Route path="/myinfo/reports/:id" element={<MyReportDetail />} />
         </Route>
       </Routes>
     </BrowserRouter>
