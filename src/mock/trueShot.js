@@ -21,14 +21,28 @@ export const SUCCESS_REASONS = {
 export const FIRST_SHOT_SECONDS = 180;
 export const SECOND_SHOT_SECONDS = 60;
 
-// 2차 무작위 지시 목록 (판매자가 1차 인증을 시작할 때 하나를 골라 요청에 저장, \n은 제목 줄바꿈 위치)
-export const SECOND_MISSIONS = [
-  "예매 화면 우측에\n손가락 브이하고 촬영",
-  "예매 화면 좌측에\n주먹 쥔 손과 함께 촬영",
-  "예매 화면 아래에\n손바닥 펴고 촬영",
-  "예매 화면 위에\n엄지 척하고 촬영",
-  "예매 화면 우측에\n손가락 세 개 펴고 촬영",
-];
+// 2차 지시에 쓰는 손 모양 (MediaPipe GestureRecognizer가 인식하는 이름 → 문구)
+const MISSION_GESTURES = {
+  Closed_Fist: "주먹 쥐고",
+  Open_Palm: "손바닥 펴고",
+  Pointing_Up: "검지로 위를 가리키고",
+  Thumb_Up: "엄지 척하고",
+  Victory: "손가락 브이하고",
+  ILoveYou: "엄지·검지·새끼손가락 펴고",
+};
+
+// 손 위치 (예매 화면 기준, 사진에서 보이는 방향)
+const MISSION_SIDES = { left: "좌측", right: "우측" };
+
+// 2차 무작위 지시 목록 = 손 모양 6 × 좌우 2 (판매자가 1차 인증을 시작할 때 하나를 골라 요청에 저장)
+// text: 화면 문구 (\n은 제목 줄바꿈 위치), gesture·side: 판독 때 기대하는 손 모양·위치
+export const SECOND_MISSIONS = Object.entries(MISSION_GESTURES).flatMap(([gesture, action]) =>
+  Object.entries(MISSION_SIDES).map(([side, sideLabel]) => ({
+    text: `예매 화면 ${sideLabel}에\n${action} 촬영`,
+    gesture,
+    side,
+  })),
+);
 
 // AI 판독 목업이 실패할 때 판매자에게 보여줄 이유 ({code}는 요청의 인증코드)
 export const SELLER_FAIL_REASONS = {

@@ -218,3 +218,7 @@ export function completeSellerSession(id, photo) {
     result: "success",
   });
 }
+
+// 2차 지시 문구 (예전 데이터는 문구만 문자열로 저장돼 있음)
+export const getSecondMissionText = (request) =>
+  typeof request.secondMission === "string" ? request.secondMission : (request.secondMission?.text ?? "");

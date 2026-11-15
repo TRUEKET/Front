@@ -11,6 +11,7 @@ import useCountdown from "../../../hooks/useCountdown.js";
 import {
   completeSellerSession,
   failSellerSession,
+  getSecondMissionText,
   getSellerFailReasons,
   getTrueShotRequest,
   isExpired,
@@ -139,7 +140,7 @@ export default function SellerSession() {
       <SellerShot
         round={round}
         code={request.code}
-        mission={request.secondMission}
+        mission={getSecondMissionText(request)}
         remainSeconds={remainSeconds}
         onShot={handleShot}
       />
