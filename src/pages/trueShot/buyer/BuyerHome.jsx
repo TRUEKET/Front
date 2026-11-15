@@ -151,11 +151,10 @@ export default function BuyerHome() {
     navigate(`/trueshot/requests/${request.id}`);
   };
 
-  // 촬영 대기 → 요청 상세, 인증 성공 → 결과 화면 (TODO: 인증 실패 → 실패 화면 작업 때 연결)
+  // 촬영 대기 → 요청 상세, 인증 성공·실패 → 결과 화면
   const handleItemClick = (request) => {
-    const status = getRequestStatus(request);
-    if (status === "pending") navigate(`/trueshot/requests/${request.id}`);
-    if (status === "success") navigate(`/trueshot/requests/${request.id}/result`);
+    const isPending = getRequestStatus(request) === "pending";
+    navigate(`/trueshot/requests/${request.id}${isPending ? "" : "/result"}`);
   };
 
   return (
