@@ -1,7 +1,12 @@
 // 트루샷 요청 관련 로직 모음
 // TODO: 트루샷 API 연동 시 각 함수 안쪽만 실제 요청으로 바꾸면 됨 (화면은 이 파일의 함수만 사용)
 // 지금은 목업: 요청 목록을 localStorage에 저장 (새로고침·새 탭에서도 같은 요청을 찾을 수 있게)
-import { MOCK_MY_PHONE_LAST4, REQUEST_EXPIRE_MINUTES, createMockRequests } from "../mock/trueShot.js";
+import {
+  MOCK_MY_PHONE_LAST4,
+  REQUEST_EXPIRE_MINUTES,
+  SELLER_MESSAGE,
+  createMockRequests,
+} from "../mock/trueShot.js";
 
 const REQUESTS_KEY = "trueket_trueshot_requests";
 
@@ -96,3 +101,21 @@ export function getRequestStatus(request, now = Date.now()) {
 
 // 판매자에게 보낼 링크 (임시 경로)
 export const getSellerLink = (id) => `${window.location.origin}/trueshot/seller/${id}`;
+
+// 판매자 송신용 메시지 미리보기 문구
+export const getSellerMessage = () => SELLER_MESSAGE;
+
+// 클립보드에 복사할 내용: 안내 문구 + 판매자 링크
+export async function copySellerMessage(id) {
+  await navigator.clipboard.writeText(`${SELLER_MESSAGE}\n${getSellerLink(id)}`);
+}
+
+// 진행 단계 4개 (인증 완료는 성공·실패·만료 모두 완료로 봄)
+export function getRequestProgress(request, now = Date.now()) {
+  return [
+    { label: "링크 제작 완료", done: true },
+    { label: "판매자의 첫번째 촬영", done: Boolean(request.firstShotAt) },
+    { label: "판매자의 두번째 촬영", done: Boolean(request.secondShotAt) },
+    { label: "인증 완료", done: getRequestStatus(request, now) !== "pending" },
+  ];
+}

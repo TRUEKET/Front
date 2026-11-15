@@ -6,7 +6,11 @@ export const MOCK_MY_PHONE_LAST4 = "5678";
 // 요청 후 판매자가 촬영을 마쳐야 하는 시간 (30분)
 export const REQUEST_EXPIRE_MINUTES = 30;
 
-const minutesLater = (date, minutes) => new Date(date.getTime() + minutes * 60 * 1000);
+// 판매자에게 링크와 함께 보내는 안내 문구 (빈 줄로 문단 구분)
+export const SELLER_MESSAGE =
+  "안녕하세요! 거래 전 실제 예매 내역을 한 번 더 확인하고 싶어요.\n\n트루샷 요청을 열고 촬영을 시작하면 나오는 미션에 맞춰 시간 내에 사진을 보내주실 수 있을까요?";
+
+const minutesLater =(date, minutes) => new Date(date.getTime() + minutes * 60 * 1000);
 
 // localStorage가 비어 있을 때 넣는 처음 요청 3건 (피그마 목록)
 // 촬영 대기 건은 고정 날짜면 바로 만료돼 실패로 보이므로, 처음 연 시각 기준으로 방금 요청한 것으로 만듦
