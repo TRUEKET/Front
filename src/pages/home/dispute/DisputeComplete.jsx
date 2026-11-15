@@ -1,9 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import MainButton from "../../components/common/MainButton.jsx";
-import checkIcon from "../../assets/icons/dispute_complete_check.svg";
-import { MOCK_DISPUTE_REASONS } from "../../mock/disputeReason.js";
-import { MOCK_DISPUTE_RECEIPT_NO } from "../../mock/disputeComplete.js";
+import MainButton from "../../../components/common/MainButton.jsx";
+import checkIcon from "../../../assets/icons/dispute_complete_check.svg";
+import { MOCK_DISPUTE_REASONS } from "../../../mock/disputeReason.js";
+import { MOCK_DISPUTE_RECEIPT_NO } from "../../../mock/disputeComplete.js";
 
 // line-height:1로 Figma의 lineHeight 100%에 맞춤
 const StyledContent = styled.div`

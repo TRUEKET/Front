@@ -1,13 +1,13 @@
 import { Fragment, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import BackHeader from "../../components/header/BackHeader.jsx";
-import Button from "../../components/common/Button.jsx";
-import AccountSummaryCard from "../../components/common/AccountSummaryCard.jsx";
-import phoneIcon from "../../assets/icons/detail_phone.svg";
-import xAccountIcon from "../../assets/icons/detail_x_account.svg";
-import otherAccountIcon from "../../assets/icons/detail_other_account.svg";
-import { MOCK_RELATED_INFO, MOCK_TIMELINE } from "../../mock/searchDetail.js";
+import BackHeader from "../../../components/header/BackHeader.jsx";
+import Button from "../../../components/common/Button.jsx";
+import AccountSummaryCard from "../../../components/common/AccountSummaryCard.jsx";
+import phoneIcon from "../../../assets/icons/detail_phone.svg";
+import xAccountIcon from "../../../assets/icons/detail_x_account.svg";
+import otherAccountIcon from "../../../assets/icons/detail_other_account.svg";
+import { MOCK_RELATED_INFO, MOCK_TIMELINE } from "../../../mock/searchDetail.js";
 
 // 연관 정보 타입별 아이콘
 const RELATED_INFO_ICONS = {

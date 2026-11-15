@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import BackHeader from "../../components/header/BackHeader.jsx";
-import MainButton from "../../components/common/MainButton.jsx";
-import removeIcon from "../../assets/icons/dispute_photo_sample.svg";
-import uploadIcon from "../../assets/icons/dispute_upload.svg";
-import { MOCK_DISPUTE_REASONS } from "../../mock/disputeReason.js";
-import { MOCK_DISPUTE_EVIDENCE } from "../../mock/disputeEvidence.js";
+import BackHeader from "../../../components/header/BackHeader.jsx";
+import MainButton from "../../../components/common/MainButton.jsx";
+import removeIcon from "../../../assets/icons/dispute_photo_sample.svg";
+import uploadIcon from "../../../assets/icons/dispute_upload.svg";
+import { MOCK_DISPUTE_REASONS } from "../../../mock/disputeReason.js";
+import { MOCK_DISPUTE_EVIDENCE } from "../../../mock/disputeEvidence.js";
 
 const MAX_DESCRIPTION = 400;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

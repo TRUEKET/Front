@@ -5,12 +5,12 @@ import Home from "./pages/home/Home.jsx";
 import MyInfo from "./pages/myInfo/MyInfo.jsx";
 import Response from "./pages/response/Response.jsx";
 import TrueShot from "./pages/trueShot/TrueShot.jsx";
-import Search from "./pages/home/Search.jsx";
-import DetailInfo from "./pages/home/DetailInfo.jsx";
-import Dispute from "./pages/home/Dispute.jsx";
-import DisputeReason from "./pages/home/DisputeReason.jsx";
-import DisputeEvidence from "./pages/home/DisputeEvidence.jsx";
-import DisputeComplete from "./pages/home/DisputeComplete.jsx";
+import Search from "./pages/home/search/Search.jsx";
+import DetailInfo from "./pages/home/search/DetailInfo.jsx";
+import Dispute from "./pages/home/dispute/Dispute.jsx";
+import DisputeReason from "./pages/home/dispute/DisputeReason.jsx";
+import DisputeEvidence from "./pages/home/dispute/DisputeEvidence.jsx";
+import DisputeComplete from "./pages/home/dispute/DisputeComplete.jsx";
 
 function App() {
   return (
