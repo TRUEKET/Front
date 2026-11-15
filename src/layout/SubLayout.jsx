@@ -7,7 +7,9 @@ const HIDE_FOOTER_PREFIXES = ["/search/dispute", "/scan", "/report", "/auth"];
 // 메인 로고 헤더 없이, 각 페이지가 직접 넣는 BackHeader + 하단 탭바만 공통으로 보이는 레이아웃
 export default function SubLayout() {
   const { pathname } = useLocation();
-  const showFooter = !HIDE_FOOTER_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  // 트루샷은 메인(/trueshot)만 탭바를 보이고, 요청 상세·결과 등 하위 화면(/trueshot/...)은 숨김
+  const isTrueShotSubPage = pathname.startsWith("/trueshot/");
+  const showFooter = !HIDE_FOOTER_PREFIXES.some((prefix) => pathname.startsWith(prefix)) && !isTrueShotSubPage;
 
   return (
     <>

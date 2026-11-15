@@ -4,7 +4,6 @@ import SubLayout from "./layout/SubLayout.jsx";
 import Home from "./pages/home/Home.jsx";
 import MyInfo from "./pages/myInfo/MyInfo.jsx";
 import Response from "./pages/response/Response.jsx";
-import TrueShot from "./pages/trueShot/TrueShot.jsx";
 import Search from "./pages/home/search/Search.jsx";
 import DetailInfo from "./pages/home/search/DetailInfo.jsx";
 import Dispute from "./pages/home/dispute/Dispute.jsx";
@@ -20,6 +19,9 @@ import ReportForm from "./pages/home/report/ReportForm.jsx";
 import Auth from "./pages/auth/Auth.jsx";
 import MyReports from "./pages/myInfo/MyReports.jsx";
 import MyReportDetail from "./pages/myInfo/MyReportDetail.jsx";
+import BuyerHome from "./pages/trueShot/buyer/BuyerHome.jsx";
+import RequestDetail from "./pages/trueShot/buyer/RequestDetail.jsx";
+import RequestResult from "./pages/trueShot/buyer/RequestResult.jsx";
 
 function App() {
   return (
@@ -29,7 +31,6 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/myinfo" element={<MyInfo />} />
           <Route path="/response" element={<Response />} />
-          <Route path="/trueshot" element={<TrueShot />} />
         </Route>
         <Route element={<SubLayout />}>
           <Route path="/search" element={<Search />} />
@@ -49,6 +50,9 @@ function App() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/myinfo/reports" element={<MyReports />} />
           <Route path="/myinfo/reports/:id" element={<MyReportDetail />} />
+          <Route path="/trueshot" element={<BuyerHome />} />
+          <Route path="/trueshot/requests/:id" element={<RequestDetail />} />
+          <Route path="/trueshot/requests/:id/result" element={<RequestResult />} />
         </Route>
       </Routes>
     </BrowserRouter>
