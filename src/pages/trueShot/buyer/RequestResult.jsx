@@ -7,14 +7,21 @@ import ResultTitle from "../../../components/trueShot/ResultTitle.jsx";
 import ReasonList from "../../../components/trueShot/ReasonList.jsx";
 import {
   getFailReasons,
+  getSecondMissionText,
   getRequestStatus,
   getShotPhotos,
   getSuccessReasons,
   getTrueShotRequest,
 } from "../../../api/trueShot.js";
 
-// 판매자 사진 미션 2개
-const MISSIONS = ["종이에 인증코드 적어 예매 화면 좌측에 두고 촬영", "예매화면 오른쪽에 손가락 브이한채로 촬영"];
+// 판매자 사진 미션 (2차는 요청에 저장된 무작위 지시, 판매자가 시작하기 전이면 피그마 기본 문구)
+const FIRST_MISSION = "종이에 인증코드 적어 예매 화면 좌측에 두고 촬영";
+const DEFAULT_SECOND_MISSION = "예매화면 오른쪽에 손가락 브이한채로 촬영";
+
+const getMissions = (request) => [
+  FIRST_MISSION,
+  getSecondMissionText(request).replace("\n", " ") || DEFAULT_SECOND_MISSION,
+];
 
 // 결과별 화면 차이 (피그마 기준 성공·실패 화면 수치가 조금씩 다름)
 // backLabel: 뒤로가기 문구, color: 제목 옆 막대, missionGap: 미션 카드 간격, reasonsTitle·reasonsWeight: 이유 카드 제목
@@ -130,7 +137,7 @@ export default function RequestResult() {
         </ResultTitle>
 
         <StyledCard $gap={config.missionGap}>
-          {MISSIONS.map((mission, index) => (
+          {getMissions(request).map((mission, index) => (
             <StyledMission key={mission}>
               <StyledMissionNumber>{index + 1}</StyledMissionNumber>
               {mission}
