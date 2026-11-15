@@ -58,6 +58,11 @@ export function createMockRequests(now = new Date()) {
       firstShotAt: minutesLater(failedAt, 5).toISOString(),
       secondShotAt: null,
       result: "failed",
+      // 판정된 실패 이유 (passed: true 초록 체크 / false 빨간 X)
+      failReasons: [
+        { passed: true, text: "첫번째 사진 인증 성공" },
+        { passed: false, text: "두 번째 사진이 시간 내에 전송되지 않음" },
+      ],
     },
   ];
 }

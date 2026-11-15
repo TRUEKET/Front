@@ -133,6 +133,18 @@ export function getSuccessReasons(request) {
   };
 }
 
+// 실패 이유 ({ passed, text } 목록)
+// 판정된 이유가 저장돼 있으면 그대로, 없으면(시간 만료 등) 마친 촬영은 체크 + 마지막에 "시간 만료"
+export function getFailReasons(request) {
+  if (request.failReasons) return request.failReasons;
+
+  return [
+    ...(request.firstShotAt ? [{ passed: true, text: "첫번째 사진 인증 성공" }] : []),
+    ...(request.secondShotAt ? [{ passed: true, text: "두번째 사진 인증 성공" }] : []),
+    { passed: false, text: "시간 만료" },
+  ];
+}
+
 // 진행 단계 4개 (인증 완료는 성공·실패·만료 모두 완료로 봄)
 export function getRequestProgress(request, now = Date.now()) {
   return [

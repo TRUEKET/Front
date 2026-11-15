@@ -4,14 +4,37 @@ import BackHeader from "../../../components/header/BackHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import ShotPhotos from "./ShotPhotos.jsx";
 import checkIcon from "../../../assets/icons/trueshot_check.svg";
-import { getRequestStatus, getShotPhotos, getSuccessReasons, getTrueShotRequest } from "../../../api/trueShot.js";
+import xIcon from "../../../assets/icons/trueshot_x.svg";
+import {
+  getFailReasons,
+  getRequestStatus,
+  getShotPhotos,
+  getSuccessReasons,
+  getTrueShotRequest,
+} from "../../../api/trueShot.js";
 
 // 판매자 사진 미션 2개
 const MISSIONS = ["종이에 인증코드 적어 예매 화면 좌측에 두고 촬영", "예매화면 오른쪽에 손가락 브이한채로 촬영"];
 
-// 결과별 제목·막대 색
-const RESULT_TITLE = {
-  success: { lines: ["판매자가 트루샷 인증에", "성공했습니다!"], color: "#20894d" },
+// 결과별 화면 차이 (피그마 기준 성공·실패 화면 수치가 조금씩 다름)
+// backLabel: 뒤로가기 문구, color: 제목 옆 막대, missionGap: 미션 카드 간격, reasonsTitle·reasonsWeight: 이유 카드 제목
+const RESULT_CONFIG = {
+  success: {
+    backLabel: "뒤로가기",
+    lines: ["판매자가 트루샷 인증에", "성공했습니다!"],
+    color: "#20894d",
+    missionGap: 12,
+    reasonsTitle: "성공 이유",
+    reasonsWeight: 700,
+  },
+  failed: {
+    backLabel: "인증 요청",
+    lines: ["판매자가 트루샷 인증에", "실패했습니다."],
+    color: "#ca2317",
+    missionGap: 11,
+    reasonsTitle: "실패 이유",
+    reasonsWeight: 600,
+  },
 };
 
 // 헤더 아래 16px 띄우고(피그마 기준 제목 y=84) 12px 간격, 아래 고정 버튼(50px) + 바닥 여백(12px)만큼 비움
@@ -54,7 +77,7 @@ const StyledTitle = styled.h2`
 const StyledCard = styled.section`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: ${({ $gap = 12 }) => `${$gap}px`};
   padding: 12px 16px;
   background: #fdfdfd;
   border: 1px solid #cac0f2;
@@ -89,7 +112,7 @@ const StyledMissionNumber = styled.span`
 const StyledCardTitle = styled.p`
   color: #191919;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: ${({ $weight }) => $weight};
 `;
 
 const StyledReasons = styled.ul`
@@ -104,7 +127,7 @@ const StyledReasons = styled.ul`
   font-weight: 500;
 `;
 
-// 아이콘(13x10 자리) + 문구
+// 초록 체크(13x10 자리) + 문구
 const StyledReason = styled.li`
   display: flex;
   gap: 8px;
@@ -114,6 +137,18 @@ const StyledReason = styled.li`
     display: block;
     flex-shrink: 0;
     margin: -1px -1px -1.5px;
+  }
+`;
+
+// 빨간 X(13.6x13.07) + 문구 (피그마 기준 간격 12px)
+const StyledFailReason = styled.li`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+
+  img {
+    display: block;
+    flex-shrink: 0;
   }
 `;
 
@@ -136,7 +171,43 @@ const StyledBottomAction = styled.div`
   padding: 0 16px;
 `;
 
-// 트루샷 인증 결과 (성공: 판매자 촬영 사진 + 성공 이유)
+// 성공 이유: 체크 줄 + 점 안내 줄
+function SuccessReasons({ request }) {
+  const { checks, notes } = getSuccessReasons(request);
+
+  return (
+    <>
+      {checks.map((text) => (
+        <StyledReason key={text}>
+          <img src={checkIcon} alt="" />
+          {text}
+        </StyledReason>
+      ))}
+      {notes.map((text) => (
+        <StyledNote key={text}>{text}</StyledNote>
+      ))}
+    </>
+  );
+}
+
+// 실패 이유: 통과한 항목은 초록 체크, 실패한 항목은 빨간 X
+function FailReasons({ request }) {
+  return getFailReasons(request).map(({ passed, text }) =>
+    passed ? (
+      <StyledReason key={text}>
+        <img src={checkIcon} alt="통과" />
+        {text}
+      </StyledReason>
+    ) : (
+      <StyledFailReason key={text}>
+        <img src={xIcon} alt="실패" />
+        {text}
+      </StyledFailReason>
+    ),
+  );
+}
+
+// 트루샷 인증 결과 (성공: 판매자 촬영 사진 + 성공 이유 / 실패: 실패 이유)
 export default function RequestResult() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -145,26 +216,25 @@ export default function RequestResult() {
   if (!request) return <Navigate to="/trueshot" replace />;
 
   const status = getRequestStatus(request);
-  // 결과 전이면 요청 상세로 (TODO: 실패 화면 작업 전까지 실패는 트루샷 메인으로)
+  // 결과 전이면 요청 상세로
   if (status === "pending") return <Navigate to={`/trueshot/requests/${id}`} replace />;
-  if (status !== "success") return <Navigate to="/trueshot" replace />;
 
-  const title = RESULT_TITLE[status];
-  const reasons = getSuccessReasons(request);
+  const config = RESULT_CONFIG[status];
+  const isSuccess = status === "success";
 
   return (
     <>
-      <BackHeader label="뒤로가기" />
+      <BackHeader label={config.backLabel} />
       <StyledContent>
-        <StyledTitleRow $color={title.color}>
+        <StyledTitleRow $color={config.color}>
           <StyledTitle>
-            {title.lines[0]}
+            {config.lines[0]}
             <br />
-            {title.lines[1]}
+            {config.lines[1]}
           </StyledTitle>
         </StyledTitleRow>
 
-        <StyledCard>
+        <StyledCard $gap={config.missionGap}>
           {MISSIONS.map((mission, index) => (
             <StyledMission key={mission}>
               <StyledMissionNumber>{index + 1}</StyledMissionNumber>
@@ -173,20 +243,12 @@ export default function RequestResult() {
           ))}
         </StyledCard>
 
-        <ShotPhotos photos={getShotPhotos(request)} />
+        {isSuccess && <ShotPhotos photos={getShotPhotos(request)} />}
 
         <StyledCard>
-          <StyledCardTitle>성공 이유</StyledCardTitle>
+          <StyledCardTitle $weight={config.reasonsWeight}>{config.reasonsTitle}</StyledCardTitle>
           <StyledReasons>
-            {reasons.checks.map((text) => (
-              <StyledReason key={text}>
-                <img src={checkIcon} alt="" />
-                {text}
-              </StyledReason>
-            ))}
-            {reasons.notes.map((text) => (
-              <StyledNote key={text}>{text}</StyledNote>
-            ))}
+            {isSuccess ? <SuccessReasons request={request} /> : <FailReasons request={request} />}
           </StyledReasons>
         </StyledCard>
       </StyledContent>
