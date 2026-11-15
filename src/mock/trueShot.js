@@ -21,13 +21,13 @@ export const SUCCESS_REASONS = {
 export const FIRST_SHOT_SECONDS = 180;
 export const SECOND_SHOT_SECONDS = 60;
 
-// 2차 무작위 지시 목록 (판매자가 1차 인증을 시작할 때 하나를 골라 요청에 저장)
+// 2차 무작위 지시 목록 (판매자가 1차 인증을 시작할 때 하나를 골라 요청에 저장, \n은 제목 줄바꿈 위치)
 export const SECOND_MISSIONS = [
-  "예매 화면 우측에 손가락 브이하고 촬영",
-  "예매 화면 좌측에 주먹 쥔 손과 함께 촬영",
-  "예매 화면 아래에 손바닥 펴고 촬영",
-  "예매 화면 위에 엄지 척하고 촬영",
-  "예매 화면 우측에 손가락 세 개 펴고 촬영",
+  "예매 화면 우측에\n손가락 브이하고 촬영",
+  "예매 화면 좌측에\n주먹 쥔 손과 함께 촬영",
+  "예매 화면 아래에\n손바닥 펴고 촬영",
+  "예매 화면 위에\n엄지 척하고 촬영",
+  "예매 화면 우측에\n손가락 세 개 펴고 촬영",
 ];
 
 const minutesLater = (date, minutes) => new Date(date.getTime() + minutes * 60 * 1000);
