@@ -196,3 +196,15 @@ export function saveFirstShot(id, photo) {
   const now = new Date().toISOString();
   return updateTrueShotRequest(id, { firstShotAt: now, secondStartedAt: now, photos: [photo] });
 }
+
+// 최종 실패 저장 (reasons: { seller, buyer } 실패 이유) → 구매자 결과가 '인증 실패'로 바뀜
+export function failSellerSession(id, reasons) {
+  return updateTrueShotRequest(id, {
+    result: "failed",
+    failReasons: reasons.buyer,
+    sellerFailReasons: reasons.seller,
+  });
+}
+
+// 판매자 결과 화면의 실패 이유 (판매자용 이유가 없는 예전 데이터는 구매자용 이유로 대신)
+export const getSellerFailReasons = (request) => request.sellerFailReasons ?? getFailReasons(request);

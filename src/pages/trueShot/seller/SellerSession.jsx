@@ -1,14 +1,29 @@
 import { useEffect, useState } from "react";
-import { Navigate, useParams, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import SellerHeader from "../../../components/trueShot/SellerHeader.jsx";
 import SellerIntro from "./SellerIntro.jsx";
 import SellerShot from "./SellerShot.jsx";
 import SellerJudging from "./SellerJudging.jsx";
 import MaskEditor from "./MaskEditor.jsx";
+import SellerResult from "./SellerResult.jsx";
 import { StyledSellerPage } from "./sellerStyles.js";
 import useCountdown from "../../../hooks/useCountdown.js";
-import { getTrueShotRequest, judgeSellerShot, saveFirstShot, startSellerSession } from "../../../api/trueShot.js";
-import { FIRST_SHOT_SECONDS, JUDGE_LOADING_MS, SECOND_SHOT_SECONDS } from "../../../mock/trueShot.js";
+import {
+  failSellerSession,
+  getSellerFailReasons,
+  getTrueShotRequest,
+  isExpired,
+  judgeSellerShot,
+  saveFirstShot,
+  startSellerSession,
+} from "../../../api/trueShot.js";
+import {
+  EXPIRED_REASONS,
+  FIRST_SHOT_SECONDS,
+  JUDGE_LOADING_MS,
+  SECOND_SHOT_SECONDS,
+  SESSION_FAIL_REASONS,
+} from "../../../mock/trueShot.js";
 
 // 시작 시각 + 제한 시간 → 마감 시각(ms), 시작 전이면 null
 const getDeadline = (startedAt, seconds) => (startedAt ? new Date(startedAt).getTime() + seconds * 1000 : null);
@@ -18,6 +33,7 @@ const getDeadline = (startedAt, seconds) => (startedAt ? new Date(startedAt).get
 // 확인용: 주소에 ?mock=fail1 / ?mock=fail2 를 붙이면 1차·2차 AI 판독이 실패함
 export default function SellerSession() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [request, setRequest] = useState(() => getTrueShotRequest(id));
   // 지금 회차에서 찍은 사진과 판독 결과 (판독 중이면 judge가 null)
@@ -31,13 +47,25 @@ export default function SellerSession() {
   const secondRemain = useCountdown(getDeadline(request?.secondStartedAt, SECOND_SHOT_SECONDS));
   const remainSeconds = round === 1 ? firstRemain : secondRemain;
 
+  // 판독을 통과하기 전에 이번 회차 시간이 다 되면 타임어택 실패
+  const timedOut =
+    Boolean(request?.firstStartedAt) && request.result === null && remainSeconds === 0 && !judge?.passed;
+
+  // 타임어택 실패는 저장만 하고(화면은 timedOut으로 바로 바뀜), 구매자 결과도 실패로 바뀜
+  useEffect(() => {
+    if (timedOut) failSellerSession(id, SESSION_FAIL_REASONS[round === 1 ? "firstTimeout" : "secondTimeout"]);
+  }, [timedOut, id, round]);
+
   // 사진을 찍으면 잠시 판독 로딩을 보여준 뒤 결과
   useEffect(() => {
     if (!shot || judge) return undefined;
 
     const timer = setTimeout(() => {
       const forceFail = searchParams.get("mock") === `fail${round}`;
-      setJudge(judgeSellerShot(getTrueShotRequest(id), round, { forceFail }));
+      const result = judgeSellerShot(getTrueShotRequest(id), round, { forceFail });
+      setJudge(result);
+      // 2차 판독 실패는 다시 찍을 수 없어 바로 최종 실패
+      if (round === 2 && !result.passed) setRequest(failSellerSession(id, SESSION_FAIL_REASONS.secondJudge));
     }, JUDGE_LOADING_MS);
     return () => clearTimeout(timer);
   }, [shot, judge, id, round, searchParams]);
@@ -66,7 +94,20 @@ export default function SellerSession() {
     setMasking(false);
   };
 
+  const goHome = () => navigate("/");
+
   const renderStage = () => {
+    // 끝난 세션은 결과를 다시 보여줌 (재사용 불가)
+    if (request.result === "success") return <SellerResult success />;
+    if (request.result === "failed") {
+      return <SellerResult reasons={getSellerFailReasons(request)} buttonLabel="끝내기" onButton={goHome} />;
+    }
+    if (isExpired(request)) return <SellerResult reasons={EXPIRED_REASONS} buttonLabel="끝내기" onButton={goHome} />;
+    if (timedOut) {
+      const reasons = SESSION_FAIL_REASONS[round === 1 ? "firstTimeout" : "secondTimeout"].seller;
+      return <SellerResult reasons={reasons} buttonLabel="끝내기" onButton={goHome} />;
+    }
+
     if (!request.firstStartedAt) return <SellerIntro onStart={handleStart} />;
 
     if (round === 1) {
@@ -78,10 +119,11 @@ export default function SellerSession() {
       }
     }
 
-    if (round === 2) {
-      // 2차는 결과 모달 없이 로딩 후 결과 화면으로
-      if (shot && !judge) return <SellerJudging judge={null} />;
-      if (shot && judge) return <p>2차 결과 (작업 중)</p>;
+    if (round === 2 && shot) {
+      if (masking) return <p>2차 인증 가리기 (작업 중)</p>;
+      // 2차는 결과 모달 없이 로딩 후 결과 화면으로 (실패는 위에서 최종 실패로 처리)
+      if (!judge) return <SellerJudging judge={null} />;
+      return <SellerResult success buttonLabel="개인정보 가리기" onButton={() => setMasking(true)} />;
     }
 
     return (
@@ -96,11 +138,12 @@ export default function SellerSession() {
   };
 
   // 판독 로딩 화면엔 헤더가 없음
-  const isJudging = shot && !masking && (round === 1 || !judge);
+  const isJudging = Boolean(shot) && !judge && request.result === null && !timedOut;
+  const isFirstModal = round === 1 && Boolean(shot) && !masking && !timedOut;
 
   return (
     <StyledSellerPage>
-      {!isJudging && <SellerHeader />}
+      {!isJudging && !isFirstModal && <SellerHeader />}
       {renderStage()}
     </StyledSellerPage>
   );

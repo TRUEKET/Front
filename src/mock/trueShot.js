@@ -42,6 +42,34 @@ export const SELLER_FAIL_REASONS = {
   ],
 };
 
+// 최종 실패 시 저장하는 이유 (seller: 판매자 화면 / buyer: 구매자 결과 화면)
+export const SESSION_FAIL_REASONS = {
+  // 2차 AI 판독 실패
+  secondJudge: {
+    seller: SELLER_FAIL_REASONS[2],
+    buyer: [
+      { passed: true, text: "첫번째 사진 인증 성공" },
+      { passed: false, text: "두 번째 사진이 지시를 따르지 않음" },
+    ],
+  },
+  // 1차 3분 초과
+  firstTimeout: {
+    seller: [{ passed: false, text: "3분 타임어택에 실패했어요" }],
+    buyer: [{ passed: false, text: "첫번째 사진이 시간 내에 전송되지 않음" }],
+  },
+  // 2차 1분 초과
+  secondTimeout: {
+    seller: [{ passed: false, text: "1분 타임어택에 실패했어요" }],
+    buyer: [
+      { passed: true, text: "첫번째 사진 인증 성공" },
+      { passed: false, text: "두 번째 사진이 시간 내에 전송되지 않음" },
+    ],
+  },
+};
+
+// 구매자 요청이 30분 지나 만료된 세션을 판매자가 열었을 때
+export const EXPIRED_REASONS = [{ passed: false, text: "시간 만료" }];
+
 // 판독 로딩을 보여주는 시간(ms)
 export const JUDGE_LOADING_MS = 2000;
 
