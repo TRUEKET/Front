@@ -17,6 +17,7 @@ import ScanResult from "./pages/home/scan/ScanResult.jsx";
 import Report from "./pages/home/report/Report.jsx";
 import ReportResult from "./pages/home/report/ReportResult.jsx";
 import ReportForm from "./pages/home/report/ReportForm.jsx";
+import Auth from "./pages/auth/Auth.jsx";
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
           <Route path="/report/loading" element={<ScanLoading nextPath="/report/result" />} />
           <Route path="/report/result" element={<ReportResult />} />
           <Route path="/report/form" element={<ReportForm mode="report" />} />
+          <Route path="/auth" element={<Auth />} />
         </Route>
       </Routes>
     </BrowserRouter>
