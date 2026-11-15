@@ -26,7 +26,7 @@ const StyledScanBox = styled.button`
   border: 1px solid #cac0f2;
   border-radius: 20px;
   box-shadow: 0 1px 2.5px rgba(23, 21, 28, 0.2);
-  font-family: "esamanru", sans-serif;
+  font-family: "Pretendard", sans-serif;
   text-align: left;
   cursor: pointer;
 

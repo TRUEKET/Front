@@ -12,13 +12,13 @@ const variantStyles = {
     background: #191919;
     color: #fdfdfd;
     border: none;
-    font-weight: 700;
+    font-weight: 600;
   `,
   disabled: css`
     background: #dedbe5;
     color: #4e4a57;
     border: 1.5px solid #a9a4b2;
-    font-weight: 700;
+    font-weight: 600;
   `,
 };
 
@@ -29,7 +29,7 @@ const StyledChipButton = styled.button`
   justify-content: center;
   padding: 8px 12px;
   border-radius: 20px;
-  font-family: "esamanru", sans-serif;
+  font-family: "Pretendard", sans-serif;
   font-size: 14px;
   white-space: nowrap;
   cursor: pointer;

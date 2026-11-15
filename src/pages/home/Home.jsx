@@ -28,9 +28,10 @@ const StyledHeading = styled.div`
   width: 100%;
   color: #4e4a57;
   text-align: center;
+  font-family: "Pretendard", sans-serif;
 `;
 
-// 한 줄 고정 (esamanru가 Pretendard보다 넓어서 줄바꿈 방지)
+// 한 줄 고정
 const StyledTitle = styled.p`
   margin: 0;
   font-size: 20px;
@@ -69,7 +70,7 @@ const StyledSearchInput = styled.input`
   border: none;
   outline: none;
   background: none;
-  font-family: "esamanru", sans-serif;
+  font-family: "Pretendard", sans-serif;
   font-size: 14px;
 
   &::placeholder {
@@ -117,6 +118,7 @@ const StyledCtaTexts = styled.div`
   min-width: 0;
   color: #4e4a57;
   text-align: left;
+  font-family: "Pretendard", sans-serif;
 `;
 
 const StyledCtaTitle = styled.p`
