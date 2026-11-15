@@ -4,7 +4,6 @@ import SubLayout from "./layout/SubLayout.jsx";
 import Home from "./pages/home/Home.jsx";
 import MyInfo from "./pages/myInfo/MyInfo.jsx";
 import Response from "./pages/response/Response.jsx";
-import TrueShot from "./pages/trueShot/TrueShot.jsx";
 import Search from "./pages/home/search/Search.jsx";
 import DetailInfo from "./pages/home/search/DetailInfo.jsx";
 import Dispute from "./pages/home/dispute/Dispute.jsx";
@@ -17,6 +16,7 @@ import ScanResult from "./pages/home/scan/ScanResult.jsx";
 import Report from "./pages/home/report/Report.jsx";
 import ReportResult from "./pages/home/report/ReportResult.jsx";
 import ReportForm from "./pages/home/report/ReportForm.jsx";
+import BuyerHome from "./pages/trueShot/buyer/BuyerHome.jsx";
 
 function App() {
   return (
@@ -26,7 +26,6 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/myinfo" element={<MyInfo />} />
           <Route path="/response" element={<Response />} />
-          <Route path="/trueshot" element={<TrueShot />} />
         </Route>
         <Route element={<SubLayout />}>
           <Route path="/search" element={<Search />} />
@@ -43,6 +42,7 @@ function App() {
           <Route path="/report/loading" element={<ScanLoading nextPath="/report/result" />} />
           <Route path="/report/result" element={<ReportResult />} />
           <Route path="/report/form" element={<ReportForm mode="report" />} />
+          <Route path="/trueshot" element={<BuyerHome />} />
         </Route>
       </Routes>
     </BrowserRouter>
