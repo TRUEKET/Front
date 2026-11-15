@@ -1,8 +1,11 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import ticketIcon from "../../assets/icons/header_puple_tictek.svg";
 import personBadgeIcon from "../../assets/icons/header_person_badge.svg";
-import { getCurrentUser, getPhoneLast4 } from "../../api/auth.js";
+import MyInfoPopup from "./MyInfoPopup.jsx";
+import useCurrentUser from "../../hooks/useCurrentUser.js";
+import { getPhoneLast4 } from "../../api/auth.js";
 
 // 헤더 전체 영역: 로고 블럭은 왼쪽 끝, 로그인 버튼은 오른쪽 끝에 붙임
 const StyledHeader = styled.header`
@@ -90,10 +93,16 @@ const StyledBadgeIcon = styled.span`
   }
 `;
 
+// 오른쪽(로그인 버튼·번호 배지)을 비워두는 화면 (피그마 기준 대처 화면)
+const HIDE_ACCOUNT_PATHS = ["/response"];
+
 // 모든 페이지 상단에 공통으로 보이는 헤더 (RootLayout에서 사용)
 export default function Header() {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const { pathname } = useLocation();
+  const hideAccount = HIDE_ACCOUNT_PATHS.includes(pathname);
+  const user = useCurrentUser();
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
 
   return (
     <StyledHeader>
@@ -104,8 +113,8 @@ export default function Header() {
           <StyledTrueketspan02>KET</StyledTrueketspan02>
         </StyledLogoText>
       </StyledLogo>
-      {user ? (
-        <StyledUserButton type="button" onClick={() => navigate("/myinfo")}>
+      {hideAccount ? null : user ? (
+        <StyledUserButton type="button" aria-haspopup="dialog" onClick={() => setIsPopupOpen(true)}>
           <StyledBadgeIcon>
             <img src={personBadgeIcon} alt="" />
           </StyledBadgeIcon>
@@ -116,6 +125,7 @@ export default function Header() {
           로그인·회원가입
         </StyledLoginButton>
       )}
+      {user && isPopupOpen && <MyInfoPopup user={user} onClose={() => setIsPopupOpen(false)} />}
     </StyledHeader>
   );
 }

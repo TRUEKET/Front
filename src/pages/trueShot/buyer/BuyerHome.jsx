@@ -2,7 +2,9 @@ import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import TrueShotHeader from "../../../components/trueShot/TrueShotHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
+import LoginRequired from "../../../components/common/LoginRequired.jsx";
 import RequestItem from "./RequestItem.jsx";
+import useCurrentUser from "../../../hooks/useCurrentUser.js";
 import { createTrueShotRequest, getRequestStatus, getTrueShotRequests } from "../../../api/trueShot.js";
 
 // 진행방식 3단계 (desc가 있으면 제목 아래 설명)
@@ -141,9 +143,11 @@ const StyledNote = styled.p`
 `;
 
 // 트루샷 탭 메인 (구매자): 서비스 소개 + 진행방식 + 요청하기 + 내가 요청한 목록
+// 비로그인이면 요청하기·목록 자리에 로그인 안내 (요청 목록은 개인 정보)
 export default function BuyerHome() {
   const navigate = useNavigate();
-  const requests = getTrueShotRequests();
+  const user = useCurrentUser();
+  const requests = user ? getTrueShotRequests() : [];
 
   // 새 요청을 만들어(목록 맨 위에 추가됨) 바로 요청 상세로 이동
   const handleRequest = () => {
@@ -182,28 +186,37 @@ export default function BuyerHome() {
           ))}
         </StyledProcess>
 
-        <MainButton variant="accent" type="button" onClick={handleRequest}>
-          트루샷 요청하기
-        </MainButton>
+        {user ? (
+          <>
+            <MainButton variant="accent" type="button" onClick={handleRequest}>
+              트루샷 요청하기
+            </MainButton>
 
-        <StyledDivider />
+            <StyledDivider />
 
-        <StyledListHeader>
-          <StyledListTitle>내가 요청한 목록</StyledListTitle>
-          <StyledListCount>{requests.length}건 · 최신순</StyledListCount>
-        </StyledListHeader>
+            <StyledListHeader>
+              <StyledListTitle>내가 요청한 목록</StyledListTitle>
+              <StyledListCount>{requests.length}건 · 최신순</StyledListCount>
+            </StyledListHeader>
 
-        {requests.length > 0 ? (
-          <StyledList>
-            {requests.map((request) => (
-              <RequestItem key={request.id} request={request} onClick={() => handleItemClick(request)} />
-            ))}
-          </StyledList>
+            {requests.length > 0 ? (
+              <StyledList>
+                {requests.map((request) => (
+                  <RequestItem key={request.id} request={request} onClick={() => handleItemClick(request)} />
+                ))}
+              </StyledList>
+            ) : (
+              <StyledNote>아직 요청한 트루샷이 없어요.</StyledNote>
+            )}
+
+            <StyledNote>트루샷 기록은 7일 간 보관됩니다.</StyledNote>
+          </>
         ) : (
-          <StyledNote>아직 요청한 트루샷이 없어요.</StyledNote>
+          <>
+            <StyledDivider />
+            <LoginRequired />
+          </>
         )}
-
-        <StyledNote>트루샷 기록은 7일 간 보관됩니다.</StyledNote>
       </StyledContent>
     </>
   );

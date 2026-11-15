@@ -1,8 +1,5 @@
 // TODO: 트루샷 API 연동 전까지 쓰는 목 데이터
 
-// 트루샷 헤더에 보여줄 내 전화번호 뒷자리 (TODO: 로그인 사용자 정보로 교체)
-export const MOCK_MY_PHONE_LAST4 = "5678";
-
 // 요청 후 판매자가 촬영을 마쳐야 하는 시간 (30분)
 export const REQUEST_EXPIRE_MINUTES = 30;
 
