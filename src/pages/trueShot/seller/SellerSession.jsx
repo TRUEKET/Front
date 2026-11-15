@@ -4,9 +4,10 @@ import SellerHeader from "../../../components/trueShot/SellerHeader.jsx";
 import SellerIntro from "./SellerIntro.jsx";
 import SellerShot from "./SellerShot.jsx";
 import SellerJudging from "./SellerJudging.jsx";
+import MaskEditor from "./MaskEditor.jsx";
 import { StyledSellerPage } from "./sellerStyles.js";
 import useCountdown from "../../../hooks/useCountdown.js";
-import { getTrueShotRequest, judgeSellerShot, startSellerSession } from "../../../api/trueShot.js";
+import { getTrueShotRequest, judgeSellerShot, saveFirstShot, startSellerSession } from "../../../api/trueShot.js";
 import { FIRST_SHOT_SECONDS, JUDGE_LOADING_MS } from "../../../mock/trueShot.js";
 
 // 시작 시각 + 제한 시간 → 마감 시각(ms), 시작 전이면 null
@@ -52,9 +53,18 @@ export default function SellerSession() {
     setJudge(null);
   };
 
+  // 1차 가리기 저장 → 2차 지시로
+  const handleFirstMasked = (photo) => {
+    setRequest(saveFirstShot(id, photo));
+    setShot(null);
+    setJudge(null);
+    setMasking(false);
+  };
+
   const renderStage = () => {
     if (!request.firstStartedAt) return <SellerIntro onStart={handleStart} />;
-    if (masking) return <p>1차 인증 가리기 (작업 중)</p>;
+    if (request.firstShotAt) return <p>2차 지시 (작업 중)</p>;
+    if (masking) return <MaskEditor photo={shot} buttonLabel="저장 및 2차 인증 시작하기" onDone={handleFirstMasked} />;
     if (shot) {
       return (
         <SellerJudging judge={judge} remainSeconds={firstRemain} onRetry={handleRetry} onNext={() => setMasking(true)} />

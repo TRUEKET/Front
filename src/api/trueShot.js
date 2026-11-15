@@ -190,3 +190,9 @@ export function judgeSellerShot(request, round, { forceFail = false } = {}) {
     reasons: SELLER_FAIL_REASONS[round].map((reason) => ({ ...reason, text: reason.text.replace("{code}", request.code) })),
   };
 }
+
+// 1차 가리기 저장: 가린 사진 1 저장 + 구매자 진행 단계 '첫번째 촬영' 체크 + 2차 타이머 시작
+export function saveFirstShot(id, photo) {
+  const now = new Date().toISOString();
+  return updateTrueShotRequest(id, { firstShotAt: now, secondStartedAt: now, photos: [photo] });
+}
