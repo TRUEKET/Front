@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import ticketIcon from "../../assets/icons/header_puple_tictek.svg";
 import personBadgeIcon from "../../assets/icons/header_person_badge.svg";
@@ -93,9 +93,14 @@ const StyledBadgeIcon = styled.span`
   }
 `;
 
+// 오른쪽(로그인 버튼·번호 배지)을 비워두는 화면 (피그마 기준 대처 화면)
+const HIDE_ACCOUNT_PATHS = ["/response"];
+
 // 모든 페이지 상단에 공통으로 보이는 헤더 (RootLayout에서 사용)
 export default function Header() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const hideAccount = HIDE_ACCOUNT_PATHS.includes(pathname);
   const user = useCurrentUser();
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
@@ -108,7 +113,7 @@ export default function Header() {
           <StyledTrueketspan02>KET</StyledTrueketspan02>
         </StyledLogoText>
       </StyledLogo>
-      {user ? (
+      {hideAccount ? null : user ? (
         <StyledUserButton type="button" aria-haspopup="dialog" onClick={() => setIsPopupOpen(true)}>
           <StyledBadgeIcon>
             <img src={personBadgeIcon} alt="" />
