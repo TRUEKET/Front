@@ -16,6 +16,7 @@ import ScanResult from "./pages/home/scan/ScanResult.jsx";
 import Report from "./pages/home/report/Report.jsx";
 import ReportResult from "./pages/home/report/ReportResult.jsx";
 import ReportForm from "./pages/home/report/ReportForm.jsx";
+import Auth from "./pages/auth/Auth.jsx";
 import BuyerHome from "./pages/trueShot/buyer/BuyerHome.jsx";
 import RequestDetail from "./pages/trueShot/buyer/RequestDetail.jsx";
 import RequestResult from "./pages/trueShot/buyer/RequestResult.jsx";
@@ -44,6 +45,7 @@ function App() {
           <Route path="/report/loading" element={<ScanLoading nextPath="/report/result" />} />
           <Route path="/report/result" element={<ReportResult />} />
           <Route path="/report/form" element={<ReportForm mode="report" />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/trueshot" element={<BuyerHome />} />
           <Route path="/trueshot/requests/:id" element={<RequestDetail />} />
           <Route path="/trueshot/requests/:id/result" element={<RequestResult />} />

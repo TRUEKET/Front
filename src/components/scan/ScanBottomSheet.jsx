@@ -46,6 +46,8 @@ export default function ScanBottomSheet({
   background = "#ffffff",
   shadow = false,
   topGap = 0,
+  closeLabel = "닫기",
+  onButtonClick = onClose,
 }) {
   // 시트가 떠 있는 동안 뒤 화면 스크롤 막기
   useEffect(() => {
@@ -68,8 +70,8 @@ export default function ScanBottomSheet({
         onClick={(e) => e.stopPropagation()}
       >
         {children}
-        <MainButton type="button" onClick={onClose}>
-          닫기
+        <MainButton type="button" onClick={onButtonClick}>
+          {closeLabel}
         </MainButton>
       </StyledSheet>
     </StyledOverlay>
