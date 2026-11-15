@@ -1,8 +1,9 @@
 import { Fragment, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../components/header/BackHeader.jsx";
 import Button from "../../components/common/Button.jsx";
+import AccountSummaryCard from "../../components/common/AccountSummaryCard.jsx";
 import phoneIcon from "../../assets/icons/detail_phone.svg";
 import xAccountIcon from "../../assets/icons/detail_x_account.svg";
 import otherAccountIcon from "../../assets/icons/detail_other_account.svg";
@@ -15,13 +16,6 @@ const RELATED_INFO_ICONS = {
   account: otherAccountIcon,
 };
 
-// 상태별 느낌표 원·배지 색 (status: safe 기본 / caution 의심 / danger 위험)
-const STATUS_CONFIG = {
-  safe: { circleBg: null, badge: null },
-  caution: { circleBg: "#e0a21c", badge: { label: "의심", bg: "#fff4dd", color: "#bf7100" } },
-  danger: { circleBg: "#ca2317", badge: { label: "위험", bg: "#ffdfdf", color: "#a81e14" } },
-};
-
 // 계좌 정보 카드 + 연관 정보 카드 + 타임라인 카드를 세로로 나열
 // line-height:1을 여기서만 적용 (전역 index.css의 145%는 그대로 두고, 이 화면 텍스트만 Figma의 lineHeight 100%에 맞춤)
 const StyledContent = styled.div`
@@ -31,115 +25,6 @@ const StyledContent = styled.div`
   padding: 16px;
   line-height: 1;
 `;
-
-// 계좌 정보 + 피해 신고·의심 제보 건수 카드
-const StyledAccountCard = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: flex-start;
-  box-sizing: border-box;
-  width: 100%;
-  padding: 12px 16px;
-  background: #fdfdfd;
-  border-radius: 20px;
-`;
-
-// 느낌표 원 + 배지/계좌명 묶음
-const StyledAccountRow = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  width: 100%;
-`;
-
-// 위험·의심 상태일 때만 보이는 느낌표 원 (안전 상태는 렌더링 안 함)
-const StyledWarnCircle = styled.div`
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: ${({ $bg }) => $bg};
-  color: #fdfdfd;
-  font-family: "esamanru", sans-serif;
-  font-weight: 700;
-  font-size: 18px;
-`;
-
-// 배지 + 계좌명을 세로로 쌓는 영역
-const StyledAccountTexts = styled.div`
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-start;
-  min-width: 0;
-`;
-
-// 의심·위험 상태 배지 (안전 상태는 렌더링 안 함)
-const StyledBadge = styled.span`
-  padding: 4px 8px;
-  border-radius: 5px;
-  background: ${({ $bg }) => $bg};
-  color: ${({ $color }) => $color};
-  font-family: "Pretendard", sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-`;
-
-// 계좌명 (한 줄 고정)
-const StyledAccountName = styled.p`
-  margin: 0;
-  width: 100%;
-  overflow: hidden;
-  color: #191919;
-  font-family: "Pretendard", sans-serif;
-  font-size: 20px;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  text-align: left;
-`;
-
-// 피해 신고·의심 제보 건수 박스를 가로로 나열
-const StyledStatRow = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  width: 100%;
-  color: #4e4a57;
-`;
-
-const StyledStatBox = styled.div`
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-start;
-  box-sizing: border-box;
-  padding: 12px 16px;
-  background: #dedbe5;
-  border-radius: 10px;
-`;
-
-const StyledStatLabel = styled.p`
-  margin: 0;
-  font-family: "Pretendard", sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-`;
-
-const StyledStatValue = styled.p`
-  margin: 0;
-  font-family: "Pretendard", sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-`;
-
 
 // 연관 정보·타임라인 공통 카드 (흰 배경 + 연보라 테두리)
 const StyledCard = styled.div`
@@ -364,17 +249,21 @@ const StyledTimelineType = styled.span`
   font-weight: 600;
 `;
 
-// 계좌 명의 확인용 이의제기 안내 (밑줄 텍스트, 아직 클릭 동작 없음)
-const StyledDisputeLink = styled.p`
+// 계좌 명의 확인용 이의제기 안내 (밑줄 텍스트, 누르면 이의신청 화면으로 이동)
+const StyledDisputeLink = styled.button`
   margin: 0;
   align-self: center;
   width: fit-content;
+  border: none;
   border-bottom: 1px solid #191919;
+  background: none;
+  padding: 0;
   color: #191919;
   font-family: "Pretendard", sans-serif;
   font-size: 12px;
   font-weight: 400;
   text-align: center;
+  cursor: pointer;
 `;
 
 // 연관 정보 행 하나의 비교하기 상태: idle(기본) / open(입력중) / error(불일치) / revealed(공개됨)
@@ -384,7 +273,7 @@ const INITIAL_COMPARE_ROW = { status: "idle", inputValue: "" };
 export default function DetailInfo() {
   const { state } = useLocation();
   const { status = "safe", account = "", reportCount = "0명", suspectCount = "0명" } = state ?? {};
-  const { circleBg, badge } = STATUS_CONFIG[status];
+  const navigate = useNavigate();
 
   const [compareState, setCompareState] = useState({});
   const getRowState = (label) => compareState[label] ?? INITIAL_COMPARE_ROW;
@@ -408,27 +297,14 @@ export default function DetailInfo() {
 
   return (
     <>
-      <BackHeader label="검색결과" />
+      <BackHeader label="검색 결과" />
       <StyledContent>
-        <StyledAccountCard>
-          <StyledAccountRow>
-            {circleBg && <StyledWarnCircle $bg={circleBg}>!</StyledWarnCircle>}
-            <StyledAccountTexts>
-              {badge && <StyledBadge $bg={badge.bg} $color={badge.color}>{badge.label}</StyledBadge>}
-              <StyledAccountName>{account}</StyledAccountName>
-            </StyledAccountTexts>
-          </StyledAccountRow>
-          <StyledStatRow>
-            <StyledStatBox>
-              <StyledStatLabel>실제 피해 신고</StyledStatLabel>
-              <StyledStatValue>{reportCount}</StyledStatValue>
-            </StyledStatBox>
-            <StyledStatBox>
-              <StyledStatLabel>사기 의심 제보</StyledStatLabel>
-              <StyledStatValue>{suspectCount}</StyledStatValue>
-            </StyledStatBox>
-          </StyledStatRow>
-        </StyledAccountCard>
+        <AccountSummaryCard
+          status={status}
+          account={account}
+          reportCount={reportCount}
+          suspectCount={suspectCount}
+        />
 
         <StyledCard>
           <StyledCardHeading>
@@ -514,7 +390,12 @@ export default function DetailInfo() {
           </StyledTimelineList>
         </StyledCard>
 
-        <StyledDisputeLink>내 계좌인가요? 증빙으로 이의제기하기</StyledDisputeLink>
+        <StyledDisputeLink
+          type="button"
+          onClick={() => navigate("/search/dispute", { state: { status, account, reportCount, suspectCount } })}
+        >
+          내 계좌인가요? 증빙으로 이의제기하기
+        </StyledDisputeLink>
       </StyledContent>
     </>
   );

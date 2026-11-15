@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../components/header/BackHeader.jsx";
+import SearchResultBox from "../../components/common/SearchResultBox.jsx";
 import searchIcon from "../../assets/icons/home_search.svg";
+import { MOCK_RESULTS } from "../../mock/searchResults.js";
 
 const StyledContent = styled.div`
   display: flex;
@@ -11,7 +13,7 @@ const StyledContent = styled.div`
   padding: 16px;
 `;
 
-// 둥근 알약 모양 검색창 (아이콘 + 입력칸), 제출하면 검색결과 화면으로 이동
+// 둥근 알약 모양 검색창 (아이콘 + 입력칸), 제출하면 같은 화면 아래에 결과 표시
 const StyledSearchForm = styled.form`
   display: flex;
   align-items: center;
@@ -44,12 +46,12 @@ const StyledSearchInput = styled.input`
   }
 `;
 
-// 검색결과 라벨 + 안내 문구를 세로로 쌓고 가운데 정렬
+// 검색결과 라벨 + 결과 카드(또는 안내 문구)를 세로로 쌓음
 const StyledResults = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
-  align-items: center;
+  align-items: stretch;
 `;
 
 const StyledResultHeading = styled.p`
@@ -68,17 +70,21 @@ const StyledEmptyText = styled.p`
   font-family: "Pretendard", sans-serif;
   font-size: 14px;
   font-weight: 400;
+  text-align: center;
 `;
 
-// 전화번호·계좌번호로 신고·제보 이력을 조회하는 화면
+// 전화번호·계좌번호로 신고·제보 이력을 조회하고, 결과도 같은 화면에 보여줌
 export default function Search() {
-  const [query, setQuery] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchedQuery = searchParams.get("q") ?? "";
+  const [query, setQuery] = useState(searchedQuery);
   const navigate = useNavigate();
 
+  // replace로 바꿔서 재검색이 히스토리에 쌓이지 않고, 뒤로가기는 바로 홈으로
   const handleSubmit = (event) => {
     event.preventDefault();
     if (!query.trim()) return;
-    navigate(`/search/result?q=${encodeURIComponent(query.trim())}`);
+    setSearchParams({ q: query.trim() }, { replace: true });
   };
 
   return (
@@ -96,7 +102,17 @@ export default function Search() {
         </StyledSearchForm>
         <StyledResults>
           <StyledResultHeading>검색결과</StyledResultHeading>
-          <StyledEmptyText>결과가 없습니다.</StyledEmptyText>
+          {searchedQuery ? (
+            MOCK_RESULTS.map((result) => (
+              <SearchResultBox
+                key={result.account}
+                {...result}
+                onClick={() => navigate("/search/detail", { state: result })}
+              />
+            ))
+          ) : (
+            <StyledEmptyText>결과가 없습니다.</StyledEmptyText>
+          )}
         </StyledResults>
       </StyledContent>
     </>
