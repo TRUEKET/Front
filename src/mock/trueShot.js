@@ -30,6 +30,21 @@ export const SECOND_MISSIONS = [
   "예매 화면 우측에\n손가락 세 개 펴고 촬영",
 ];
 
+// AI 판독 목업이 실패할 때 판매자에게 보여줄 이유 ({code}는 요청의 인증코드)
+export const SELLER_FAIL_REASONS = {
+  1: [
+    { passed: true, text: "알아볼 수 있는 화질이에요" },
+    { passed: false, text: "인증코드 {code}가 아니에요" },
+  ],
+  2: [
+    { passed: true, text: "알아볼 수 있는 화질이에요" },
+    { passed: false, text: "정해진 지시에 따르지 못했어요" },
+  ],
+};
+
+// 판독 로딩을 보여주는 시간(ms)
+export const JUDGE_LOADING_MS = 2000;
+
 const minutesLater = (date, minutes) => new Date(date.getTime() + minutes * 60 * 1000);
 
 // localStorage가 비어 있을 때 넣는 처음 요청 3건 (피그마 목록)

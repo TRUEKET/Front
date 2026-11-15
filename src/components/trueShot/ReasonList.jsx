@@ -5,7 +5,7 @@ import xIcon from "../../assets/icons/trueshot_x.svg";
 const StyledReasons = styled.ul`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: ${({ $gap }) => `${$gap}px`};
   margin: 0;
   padding: 0;
   list-style: none;
@@ -46,10 +46,10 @@ const StyledNote = styled.li`
 `;
 
 // 트루샷 성공·실패 이유 목록
-// reasons: [{ passed, text }] (통과 초록 체크 / 실패 빨간 X), notes: 점 표시 안내 줄
-export default function ReasonList({ reasons = [], notes = [] }) {
+// reasons: [{ passed, text }] (통과 초록 체크 / 실패 빨간 X), notes: 점 표시 안내 줄, gap: 줄 간격
+export default function ReasonList({ reasons = [], notes = [], gap = 12 }) {
   return (
-    <StyledReasons>
+    <StyledReasons $gap={gap}>
       {reasons.map(({ passed, text }) =>
         passed ? (
           <StyledReason key={text}>

@@ -10,7 +10,7 @@ const StyledTitleRow = styled.div`
     content: "";
     flex-shrink: 0;
     width: 10px;
-    height: 66px;
+    height: ${({ $barHeight }) => `${$barHeight}px`};
     background: ${({ $color }) => $color};
   }
 `;
@@ -25,10 +25,10 @@ const StyledTitle = styled.h2`
   letter-spacing: normal;
 `;
 
-// 트루샷 결과 제목 (color: 막대 색, 성공 초록 / 실패 빨강)
-export default function ResultTitle({ color, children }) {
+// 트루샷 결과 제목 (color: 막대 색, 성공 초록 / 실패 빨강, barHeight: 막대 높이 - 두 줄 제목 66 / 한 줄 제목 48)
+export default function ResultTitle({ color, barHeight = 66, children }) {
   return (
-    <StyledTitleRow $color={color}>
+    <StyledTitleRow $color={color} $barHeight={barHeight}>
       <StyledTitle>{children}</StyledTitle>
     </StyledTitleRow>
   );

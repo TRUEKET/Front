@@ -5,6 +5,7 @@ import {
   MOCK_MY_PHONE_LAST4,
   REQUEST_EXPIRE_MINUTES,
   SECOND_MISSIONS,
+  SELLER_FAIL_REASONS,
   SELLER_MESSAGE,
   SUCCESS_REASONS,
   createMockRequests,
@@ -177,4 +178,15 @@ export function startSellerSession(id) {
     firstStartedAt: new Date().toISOString(),
     secondMission: SECOND_MISSIONS[Math.floor(Math.random() * SECOND_MISSIONS.length)],
   });
+}
+
+// AI 판독 (목업: 항상 통과, forceFail이면 실패 이유와 함께 실패)
+// TODO: 판독 API 연동 시 사진을 보내고 결과를 받아오도록 교체
+export function judgeSellerShot(request, round, { forceFail = false } = {}) {
+  if (!forceFail) return { passed: true, reasons: [] };
+
+  return {
+    passed: false,
+    reasons: SELLER_FAIL_REASONS[round].map((reason) => ({ ...reason, text: reason.text.replace("{code}", request.code) })),
+  };
 }
