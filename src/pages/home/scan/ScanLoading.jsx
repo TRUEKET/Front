@@ -38,15 +38,15 @@ const StyledMessage = styled.p`
   font-weight: 500;
 `;
 
-// 판독하기를 누른 뒤 AI 판독이 끝날 때까지 보여주는 화면
-export default function ScanLoading() {
+// 판독하기를 누른 뒤 AI 판독이 끝날 때까지 보여주는 화면 (nextPath: 판독이 끝나면 이동할 결과 화면)
+export default function ScanLoading({ nextPath = "/scan/result" }) {
   const { state } = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const timer = setTimeout(() => navigate("/scan/result", { state, replace: true }), LOADING_MS);
+    const timer = setTimeout(() => navigate(nextPath, { state, replace: true }), LOADING_MS);
     return () => clearTimeout(timer);
-  }, [navigate, state]);
+  }, [navigate, nextPath, state]);
 
   return (
     <StyledLoading>
