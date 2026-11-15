@@ -7,7 +7,8 @@ import ScanConfirmModal from "../../components/scan/ScanConfirmModal.jsx";
 import PhoneVerify from "../../components/auth/PhoneVerify.jsx";
 import InfoChipRow from "../../components/myInfo/InfoChipRow.jsx";
 import PasswordChangeCard from "../../components/myInfo/PasswordChangeCard.jsx";
-import { changePhone, getCurrentUser, logout, withdraw } from "../../api/auth.js";
+import useCurrentUser from "../../hooks/useCurrentUser.js";
+import { changePhone, logout, withdraw } from "../../api/auth.js";
 
 // 헤더 아래 16px 띄우고(피그마 기준 제목 y=84) 16px 간격, 로그아웃·탈퇴는 화면 아래쪽 (탭바 자리 100px 제외)
 const StyledContent = styled.div`
@@ -73,7 +74,7 @@ const StyledWithdrawButton = styled.button`
 // 비밀번호·전화번호는 '변경하기'를 누르면 카드가 펼쳐지고, 저장하면 다시 접혀 바뀐 값을 보여줌
 export default function AccountEdit() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(getCurrentUser);
+  const user = useCurrentUser();
   const [editing, setEditing] = useState({ password: false, phone: false });
   const [newPhone, setNewPhone] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(false);
@@ -85,7 +86,7 @@ export default function AccountEdit() {
   const closeEditor = (key) => setEditing((prev) => ({ ...prev, [key]: false }));
 
   const handlePhoneSave = async () => {
-    setUser(await changePhone(newPhone));
+    await changePhone(newPhone);
     setNewPhone("");
     setPhoneVerified(false);
     closeEditor("phone");

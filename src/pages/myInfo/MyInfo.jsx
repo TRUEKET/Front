@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import MenuRow from "../../components/myInfo/MenuRow.jsx";
-import { getCurrentUser } from "../../api/auth.js";
+import useCurrentUser from "../../hooks/useCurrentUser.js";
 
 // 헤더 아래 48px 띄우고 제목 + 구분선 + 메뉴를 16px 간격으로 나열
 const StyledMyInfo = styled.div`
@@ -65,7 +65,7 @@ const StyledAuthLink = styled(Link)`
 // 내 트루샷 리스트는 디자인이 없어 아직 동작 없음
 export default function MyInfo() {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const user = useCurrentUser();
 
   if (!user) {
     return (
