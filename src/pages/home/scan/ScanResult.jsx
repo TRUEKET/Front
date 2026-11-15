@@ -5,7 +5,7 @@ import BackHeader from "../../../components/header/BackHeader.jsx";
 import ScanBox from "../../../components/common/ScanBox.jsx";
 import Button from "../../../components/common/Button.jsx";
 import { MOCK_SCAN_RESULTS } from "../../../mock/scanResult.js";
-import ScanBackModal from "./ScanBackModal.jsx";
+import ScanConfirmModal from "./ScanConfirmModal.jsx";
 import ReportHistorySheet from "./ReportHistorySheet.jsx";
 import AiPolicySheet from "./AiPolicySheet.jsx";
 import TalkDetailSheet from "./TalkDetailSheet.jsx";
@@ -371,6 +371,9 @@ const StyledThanks = styled.p`
   font-weight: 500;
 `;
 
+// 01012345678 → 010-1234-5678 (11자리가 아니면 그대로)
+const formatPhone = (phone) => phone.replace(/^(\d{3})(\d{4})(\d{4})$/, "$1-$2-$3");
+
 // AI 판독 결과 화면: 안전·의심·위험 결과를 하나의 레이아웃에서 status에 맞춰 보여줌
 export default function ScanResult() {
   const navigate = useNavigate();
@@ -397,6 +400,18 @@ export default function ScanResult() {
   const talkSummary = hasFlags
     ? `사진 ${result.photoCount}장 중 ${flaggedPhotoCount}장에서 사기 의심 정황을 찾았어요.`
     : `사진 ${result.photoCount}장에서 사기 의심 정황을 찾지 못했어요.`;
+
+  // 판독 결과에서 확인된 거래 정보를 그대로 넘겨 판독 기반 신고 화면으로 이동
+  const goToReport = () => {
+    navigate("/scan/report", {
+      state: {
+        tradeType: result.tradeType,
+        account: result.account,
+        phone: formatPhone(result.phone),
+        sns: result.sns,
+      },
+    });
+  };
 
   // 헤더의 뒤로 가기 버튼 클릭을 먼저 가로채서, 바로 이동하지 않고 확인창을 띄움
   const handleBackClick = (e) => {
@@ -512,7 +527,7 @@ export default function ScanResult() {
 
         {config.showReportHint && <StyledReportHint>이미 금전적 피해를 봤다면?</StyledReportHint>}
         {config.showReport && (
-          <Button variant="disabled" type="button" onClick={() => navigate("/response")}>
+          <Button variant="disabled" type="button" onClick={goToReport}>
             트루켓에 신고하기
           </Button>
         )}
@@ -553,7 +568,18 @@ export default function ScanResult() {
       </StyledContent>
 
       {isBackModalOpen && (
-        <ScanBackModal onClose={() => setIsBackModalOpen(false)} onConfirm={() => navigate(-1)} />
+        <ScanConfirmModal
+          message={
+            <>
+              뒤로 가기 시, 다시 시작해야합니다.
+              <br />
+              뒤로 가시겠습니까?
+            </>
+          }
+          confirmLabel="뒤로가기"
+          onClose={() => setIsBackModalOpen(false)}
+          onConfirm={() => navigate(-1)}
+        />
       )}
       {isHistoryOpen && (
         <ReportHistorySheet history={result.reportHistory} onClose={() => setIsHistoryOpen(false)} />

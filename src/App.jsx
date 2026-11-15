@@ -14,6 +14,7 @@ import DisputeComplete from "./pages/home/dispute/DisputeComplete.jsx";
 import Scan from "./pages/home/scan/Scan.jsx";
 import ScanLoading from "./pages/home/scan/ScanLoading.jsx";
 import ScanResult from "./pages/home/scan/ScanResult.jsx";
+import ScanReport from "./pages/home/scan/ScanReport.jsx";
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
           <Route path="/scan" element={<Scan />} />
           <Route path="/scan/loading" element={<ScanLoading />} />
           <Route path="/scan/result" element={<ScanResult />} />
+          <Route path="/scan/report" element={<ScanReport />} />
         </Route>
       </Routes>
     </BrowserRouter>

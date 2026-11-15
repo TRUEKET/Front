@@ -39,7 +39,7 @@ const StyledMessage = styled.p`
   text-align: center;
 `;
 
-// 닫기(테두리 있음)와 뒤로가기(테두리 없음) 폭을 똑같이 반씩 나눔
+// 닫기(테두리 있음)와 확인 버튼(테두리 없음) 폭을 똑같이 반씩 나눔
 const StyledActions = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -47,8 +47,8 @@ const StyledActions = styled.div`
   width: 100%;
 `;
 
-// 판독결과에서 뒤로 가기를 누르면 처음부터 다시 해야 한다고 한 번 더 묻는 확인창
-export default function ScanBackModal({ onClose, onConfirm }) {
+// 판독 화면들에서 쓰는 확인창 (뒤로 가기 재확인, 등록 재확인 등 문구와 확인 버튼 글자만 바꿔 씀)
+export default function ScanConfirmModal({ message, confirmLabel, onClose, onConfirm }) {
   // 확인창이 떠 있는 동안 뒤 화면 스크롤 막기
   useEffect(() => {
     const { overflow } = document.body.style;
@@ -61,17 +61,13 @@ export default function ScanBackModal({ onClose, onConfirm }) {
   return (
     <StyledOverlay onClick={onClose}>
       <StyledDialog role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <StyledMessage>
-          뒤로 가기 시, 다시 시작해야합니다.
-          <br />
-          뒤로 가시겠습니까?
-        </StyledMessage>
+        <StyledMessage>{message}</StyledMessage>
         <StyledActions>
           <MainButton variant="outline" type="button" onClick={onClose}>
             닫기
           </MainButton>
           <MainButton type="button" onClick={onConfirm}>
-            뒤로가기
+            {confirmLabel}
           </MainButton>
         </StyledActions>
       </StyledDialog>
