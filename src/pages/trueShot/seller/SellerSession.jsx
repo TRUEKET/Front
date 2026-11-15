@@ -9,6 +9,7 @@ import SellerResult from "./SellerResult.jsx";
 import { StyledSellerPage } from "./sellerStyles.js";
 import useCountdown from "../../../hooks/useCountdown.js";
 import {
+  completeSellerSession,
   failSellerSession,
   getSellerFailReasons,
   getTrueShotRequest,
@@ -94,6 +95,14 @@ export default function SellerSession() {
     setMasking(false);
   };
 
+  // 2차 가리기 후 요청자에게 전송 → 인증 성공 화면(버튼 없음)
+  const handleSecondMasked = (photo) => {
+    setRequest(completeSellerSession(id, photo));
+    setShot(null);
+    setJudge(null);
+    setMasking(false);
+  };
+
   const goHome = () => navigate("/");
 
   const renderStage = () => {
@@ -120,7 +129,7 @@ export default function SellerSession() {
     }
 
     if (round === 2 && shot) {
-      if (masking) return <p>2차 인증 가리기 (작업 중)</p>;
+      if (masking) return <MaskEditor photo={shot} buttonLabel="요청자에게 전송하기" onDone={handleSecondMasked} />;
       // 2차는 결과 모달 없이 로딩 후 결과 화면으로 (실패는 위에서 최종 실패로 처리)
       if (!judge) return <SellerJudging judge={null} />;
       return <SellerResult success buttonLabel="개인정보 가리기" onButton={() => setMasking(true)} />;

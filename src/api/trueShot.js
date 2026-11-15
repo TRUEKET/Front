@@ -208,3 +208,13 @@ export function failSellerSession(id, reasons) {
 
 // 판매자 결과 화면의 실패 이유 (판매자용 이유가 없는 예전 데이터는 구매자용 이유로 대신)
 export const getSellerFailReasons = (request) => request.sellerFailReasons ?? getFailReasons(request);
+
+// 2차 가리기 후 요청자에게 전송: 가린 사진 2 저장 + '두번째 촬영'·'인증 완료' 체크 → 구매자 결과 '인증 성공'
+export function completeSellerSession(id, photo) {
+  const request = getTrueShotRequest(id);
+  return updateTrueShotRequest(id, {
+    secondShotAt: new Date().toISOString(),
+    photos: [request.photos?.[0] ?? null, photo],
+    result: "success",
+  });
+}
