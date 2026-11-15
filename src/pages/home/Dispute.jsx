@@ -126,7 +126,7 @@ export default function Dispute() {
 
   return (
     <>
-      <BackHeader label="뒤로가기" />
+      <BackHeader label="뒤로 가기" />
       <StyledContent>
         <StyledTitle>이의신청</StyledTitle>
         <StyledTop>
