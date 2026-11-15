@@ -8,6 +8,7 @@ import MaskEditor from "./MaskEditor.jsx";
 import SellerResult from "./SellerResult.jsx";
 import { StyledSellerPage } from "./sellerStyles.js";
 import useCountdown from "../../../hooks/useCountdown.js";
+import { extractHands, prepareShotImage, requestHandAnalyze } from "../../../api/handAnalyze.js";
 import {
   completeSellerSession,
   failSellerSession,
@@ -38,7 +39,7 @@ export default function SellerSession() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [request, setRequest] = useState(() => getTrueShotRequest(id));
-  // 지금 회차에서 찍은 사진과 판독 결과 (판독 중이면 judge가 null)
+  // 지금 회차에서 찍은 사진 { canvas, blob, dataUrl }과 판독 결과 (판독 중이면 judge가 null)
   const [shot, setShot] = useState(null);
   const [judge, setJudge] = useState(null);
   const [masking, setMasking] = useState(false);
@@ -58,18 +59,45 @@ export default function SellerSession() {
     if (timedOut) failSellerSession(id, SESSION_FAIL_REASONS[round === 1 ? "firstTimeout" : "secondTimeout"]);
   }, [timedOut, id, round]);
 
-  // 사진을 찍으면 잠시 판독 로딩을 보여준 뒤 결과
+  // 사진을 찍으면 판독 (판독 로딩은 판독이 끝날 때와 최소 시간 중 늦은 쪽까지)
+  // 2차는 MediaPipe로 손 좌표·손 모양을 뽑아 손 분석 요청 (지금은 목업 응답)
   useEffect(() => {
     if (!shot || judge) return undefined;
+    let cancelled = false;
 
-    const timer = setTimeout(() => {
+    const run = async () => {
+      const startedAt = Date.now();
       const forceFail = searchParams.get("mock") === `fail${round}`;
-      const result = judgeSellerShot(getTrueShotRequest(id), round, { forceFail });
+      const latest = getTrueShotRequest(id);
+      let result;
+
+      if (round === 1) {
+        result = judgeSellerShot(latest, 1, { forceFail });
+      } else {
+        const analysis = await extractHands(shot.canvas);
+        if (import.meta.env.DEV) console.info("[hand-analyze]", analysis);
+        try {
+          result = await requestHandAnalyze({ request: latest, image: shot.blob, analysis, forceFail });
+        } catch (error) {
+          // TODO: 백엔드 연동 후 요청 실패 시 처리 방식 정하기 (지금은 2차 판독 실패로 봄)
+          console.error(error);
+          result = judgeSellerShot(latest, 2, { forceFail: true });
+        }
+      }
+
+      const wait = JUDGE_LOADING_MS - (Date.now() - startedAt);
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      if (cancelled) return;
+
       setJudge(result);
       // 2차 판독 실패는 다시 찍을 수 없어 바로 최종 실패
       if (round === 2 && !result.passed) setRequest(failSellerSession(id, SESSION_FAIL_REASONS.secondJudge));
-    }, JUDGE_LOADING_MS);
-    return () => clearTimeout(timer);
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [shot, judge, id, round, searchParams]);
 
   // 없는 링크면 홈으로
@@ -77,9 +105,11 @@ export default function SellerSession() {
 
   const handleStart = () => setRequest(startSellerSession(id));
 
-  const handleShot = (photo) => {
+  // 촬영 파일 → EXIF 회전 반영 + 긴 쪽 1000px (판독·전송·가리기 모두 이 이미지로)
+  const handleShot = async (file) => {
+    const prepared = await prepareShotImage(file);
     setJudge(null);
-    setShot(photo);
+    setShot(prepared);
   };
 
   // 1차 실패 모달에서 다시 찍기: 1차 촬영 화면으로 (타이머는 계속)
@@ -121,7 +151,7 @@ export default function SellerSession() {
     if (!request.firstStartedAt) return <SellerIntro onStart={handleStart} />;
 
     if (round === 1) {
-      if (masking) return <MaskEditor photo={shot} buttonLabel="저장 및 2차 인증 시작하기" onDone={handleFirstMasked} />;
+      if (masking) return <MaskEditor photo={shot.dataUrl} buttonLabel="저장 및 2차 인증 시작하기" onDone={handleFirstMasked} />;
       if (shot) {
         return (
           <SellerJudging judge={judge} remainSeconds={firstRemain} onRetry={handleRetry} onNext={() => setMasking(true)} />
@@ -130,7 +160,7 @@ export default function SellerSession() {
     }
 
     if (round === 2 && shot) {
-      if (masking) return <MaskEditor photo={shot} buttonLabel="요청자에게 전송하기" onDone={handleSecondMasked} />;
+      if (masking) return <MaskEditor photo={shot.dataUrl} buttonLabel="요청자에게 전송하기" onDone={handleSecondMasked} />;
       // 2차는 결과 모달 없이 로딩 후 결과 화면으로 (실패는 위에서 최종 실패로 처리)
       if (!judge) return <SellerJudging judge={null} />;
       return <SellerResult success buttonLabel="개인정보 가리기" onButton={() => setMasking(true)} />;

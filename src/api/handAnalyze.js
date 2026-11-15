@@ -35,6 +35,11 @@ const MODEL_URL =
 // 한 사진에서 찾을 최대 손 개수
 const MAX_HANDS = 4;
 
+// 손 찾기 기준 점수 (MediaPipe 기본값 0.5). 사진 속 손이 작으면 못 찾을 수 있어
+// 실제 촬영 사진으로 확인하며 조정 (낮추면 더 잘 찾지만 손이 아닌 것도 잡을 수 있음)
+const MIN_HAND_DETECTION_CONFIDENCE = 0.5;
+const MIN_HAND_PRESENCE_CONFIDENCE = 0.5;
+
 // 분석·전송 이미지의 긴 쪽 크기(px)
 const MAX_IMAGE_SIZE = 1000;
 const JPEG_QUALITY = 0.8;
@@ -50,6 +55,8 @@ const createRecognizer = async () => {
     baseOptions: { modelAssetPath: MODEL_URL },
     runningMode: "IMAGE",
     numHands: MAX_HANDS,
+    minHandDetectionConfidence: MIN_HAND_DETECTION_CONFIDENCE,
+    minHandPresenceConfidence: MIN_HAND_PRESENCE_CONFIDENCE,
   });
 };
 
