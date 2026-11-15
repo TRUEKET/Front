@@ -56,11 +56,11 @@ const StyledTitle = styled.span`
 `;
 
 // 오른쪽 화살표 아이콘을 돌려서 접힘(아래) / 펼침(위) 표시
-// 피그마 기준 화살표가 내용 영역 오른쪽 끝(342)에서 시작해 352.5까지 걸쳐 있어 음수 여백으로 맞춤
+// 회전하면 보이는 폭(12px)이 원래 폭(6.7px)보다 넓어져 오른쪽으로 삐져나오므로, 그만큼 여백을 줘서 내용 영역 끝에 맞춤
 const StyledChevron = styled.img`
   display: block;
   flex-shrink: 0;
-  margin-right: -8px;
+  margin-right: 3px;
   transform: rotate(${({ $open }) => ($open ? "-90deg" : "90deg")});
 `;
 
