@@ -363,7 +363,7 @@ export default function DisputeEvidence() {
     agreed;
 
   const handleSubmit = () => {
-    navigate("/search/dispute/complete", { state: { ...state, email: email.trim() } });
+    navigate("/search/dispute/complete", { state: { ...state, email: email.trim() }, replace: true });
   };
 
   const descriptionField = (

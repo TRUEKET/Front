@@ -10,6 +10,7 @@ import DetailInfo from "./pages/home/DetailInfo.jsx";
 import Dispute from "./pages/home/Dispute.jsx";
 import DisputeReason from "./pages/home/DisputeReason.jsx";
 import DisputeEvidence from "./pages/home/DisputeEvidence.jsx";
+import DisputeComplete from "./pages/home/DisputeComplete.jsx";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="/search/dispute" element={<Dispute />} />
           <Route path="/search/dispute/reason" element={<DisputeReason />} />
           <Route path="/search/dispute/evidence" element={<DisputeEvidence />} />
+          <Route path="/search/dispute/complete" element={<DisputeComplete />} />
         </Route>
       </Routes>
     </BrowserRouter>
