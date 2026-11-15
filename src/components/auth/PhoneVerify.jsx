@@ -60,7 +60,8 @@ const BUTTON_LABELS = {
 
 // 전화번호 인증 박스 + 시연용 문자 수신함
 // 전송하면 수신함이 뜨고 AUTO_VERIFY_DELAY 뒤 자동 인증 완료 (목업)
-export default function PhoneVerify({ phone, onPhoneChange, onVerifiedChange, shadow = false }) {
+// gap: 카드 안 간격 (회원가입 12 / 계정 정보 수정 16), children: 카드 안 맨 아래에 넣을 내용 (예: 저장하기 버튼)
+export default function PhoneVerify({ phone, onPhoneChange, onVerifiedChange, shadow = false, gap = 12, children }) {
   const id = useId();
   const [status, setStatus] = useState("idle");
   const [sms, setSms] = useState(null);
@@ -112,7 +113,7 @@ export default function PhoneVerify({ phone, onPhoneChange, onVerifiedChange, sh
 
   return (
     <>
-      <StyledFieldCard $gap={12} $shadow={shadow}>
+      <StyledFieldCard $gap={gap} $shadow={shadow}>
         <StyledLabel htmlFor={id}>전화번호 인증</StyledLabel>
         <StyledGroup>
           <StyledRow>
@@ -132,6 +133,7 @@ export default function PhoneVerify({ phone, onPhoneChange, onVerifiedChange, sh
           </StyledRow>
           {isVerified && <StyledDone>인증이 완료되었습니다.</StyledDone>}
         </StyledGroup>
+        {children}
       </StyledFieldCard>
 
       {phase === "sent" && sms && <DemoSmsInbox phone={sms.phone} code={sms.code} remainSeconds={remainSeconds} />}

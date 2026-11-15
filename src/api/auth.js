@@ -16,7 +16,7 @@ const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 export const EMAIL_ERROR = "형식이 올바르지 않습니다.";
 export const PASSWORD_ERROR = "8자 이상, 영문과 숫자를 함께 입력해 주세요.";
 
-export const isValidEmail =(email) => EMAIL_REGEX.test(email.trim());
+export const isValidEmail = (email) => EMAIL_REGEX.test(email.trim());
 
 export const isValidPassword = (password) => PASSWORD_REGEX.test(password);
 
@@ -95,3 +95,49 @@ export function getCurrentUser() {
 
 // 헤더에 보여줄 전화번호 뒷자리 4개
 export const getPhoneLast4 = (phone = "") => phone.replace(/\D/g, "").slice(-4);
+
+// ---------- 내 계정 정보 수정 ----------
+
+export const PASSWORD_CONFIRM_ERROR = "비밀번호가 일치하지 않습니다.";
+export const CURRENT_PASSWORD_ERROR = "현재 비밀번호가 일치하지 않습니다.";
+
+// 로그인한 사용자의 가입 계정 하나를 바꿔 저장하고, 로그인 정보도 같이 갱신
+const updateCurrentAccount = (patch) => {
+  const user = getCurrentUser();
+  const accounts = readStorage(ACCOUNTS_KEY, []);
+  const account = user && accounts.find((item) => item.email === user.email);
+  if (!account) throw new Error("로그인이 필요합니다.");
+
+  const updated = { ...account, ...patch };
+  writeStorage(
+    ACCOUNTS_KEY,
+    accounts.map((item) => (item.email === user.email ? updated : item)),
+  );
+  writeStorage(CURRENT_USER_KEY, toUser(updated));
+  return toUser(updated);
+};
+
+// 비밀번호 변경 (현재 비밀번호가 다르면 에러)
+export async function changePassword({ currentPassword, newPassword }) {
+  const user = getCurrentUser();
+  const account = readStorage(ACCOUNTS_KEY, []).find((item) => item.email === user?.email);
+  if (!account || account.password !== currentPassword) throw new Error(CURRENT_PASSWORD_ERROR);
+
+  return updateCurrentAccount({ password: newPassword });
+}
+
+// 전화번호 변경 (인증을 마친 번호)
+export async function changePhone(phone) {
+  return updateCurrentAccount({ phone: formatPhone(phone) });
+}
+
+// 탈퇴: 가입 계정을 지우고 로그아웃
+// 목업 단계라 계정 정보만 지움 (트루샷 요청·신고 목데이터는 사용자별로 나뉘어 있지 않아 그대로 둠)
+export async function withdraw() {
+  const user = getCurrentUser();
+  writeStorage(
+    ACCOUNTS_KEY,
+    readStorage(ACCOUNTS_KEY, []).filter((item) => item.email !== user?.email),
+  );
+  logout();
+}

@@ -1,8 +1,5 @@
 // TODO: 내 신고 리스트 API 연동 전까지 쓰는 목 데이터
 
-// 리스트 상단에 보여줄 내 전화번호 뒷자리 (TODO: 로그인 사용자 정보로 교체)
-export const MOCK_MY_PHONE_LAST4 = "5678";
-
 // 판독 결과에서 함께 나온 연관 정보 (detail_phone / detail_x_account 아이콘 타입)
 const RELATED_INFO = [
   { type: "phone", label: "전화번호", value: "010-5678-1234" },
