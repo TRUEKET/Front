@@ -3,8 +3,8 @@ import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import ShotPhotos from "./ShotPhotos.jsx";
-import checkIcon from "../../../assets/icons/trueshot_check.svg";
-import xIcon from "../../../assets/icons/trueshot_x.svg";
+import ResultTitle from "../../../components/trueShot/ResultTitle.jsx";
+import ReasonList from "../../../components/trueShot/ReasonList.jsx";
 import {
   getFailReasons,
   getRequestStatus,
@@ -46,31 +46,6 @@ const StyledContent = styled.div`
   font-family: "Pretendard", sans-serif;
   line-height: normal;
   text-align: left;
-`;
-
-// 색 막대 + 결과 제목
-const StyledTitleRow = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: center;
-
-  &::before {
-    content: "";
-    flex-shrink: 0;
-    width: 10px;
-    height: 66px;
-    background: ${({ $color }) => $color};
-  }
-`;
-
-const StyledTitle = styled.h2`
-  margin: 0;
-  color: #191919;
-  font-family: "esamanru", sans-serif;
-  font-size: 28px;
-  font-weight: 500;
-  line-height: normal;
-  letter-spacing: normal;
 `;
 
 // 흰 배경 + 연보라 테두리 + 그림자 카드 (미션, 성공·실패 이유)
@@ -115,49 +90,6 @@ const StyledCardTitle = styled.p`
   font-weight: ${({ $weight }) => $weight};
 `;
 
-const StyledReasons = styled.ul`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: #191919;
-  font-size: 14px;
-  font-weight: 500;
-`;
-
-// 초록 체크(13x10 자리) + 문구
-const StyledReason = styled.li`
-  display: flex;
-  gap: 8px;
-  align-items: center;
-
-  img {
-    display: block;
-    flex-shrink: 0;
-    margin: -1px -1px -1.5px;
-  }
-`;
-
-// 빨간 X(13.6x13.07) + 문구 (피그마 기준 간격 12px)
-const StyledFailReason = styled.li`
-  display: flex;
-  gap: 12px;
-  align-items: center;
-
-  img {
-    display: block;
-    flex-shrink: 0;
-  }
-`;
-
-// 점 표시 안내 줄
-const StyledNote = styled.li`
-  margin-left: 21px;
-  list-style: disc;
-`;
-
 // 화면 아래 고정 버튼 (바닥에서 12px)
 const StyledBottomAction = styled.div`
   position: fixed;
@@ -170,42 +102,6 @@ const StyledBottomAction = styled.div`
   margin: 0 auto;
   padding: 0 16px;
 `;
-
-// 성공 이유: 체크 줄 + 점 안내 줄
-function SuccessReasons({ request }) {
-  const { checks, notes } = getSuccessReasons(request);
-
-  return (
-    <>
-      {checks.map((text) => (
-        <StyledReason key={text}>
-          <img src={checkIcon} alt="" />
-          {text}
-        </StyledReason>
-      ))}
-      {notes.map((text) => (
-        <StyledNote key={text}>{text}</StyledNote>
-      ))}
-    </>
-  );
-}
-
-// 실패 이유: 통과한 항목은 초록 체크, 실패한 항목은 빨간 X
-function FailReasons({ request }) {
-  return getFailReasons(request).map(({ passed, text }) =>
-    passed ? (
-      <StyledReason key={text}>
-        <img src={checkIcon} alt="통과" />
-        {text}
-      </StyledReason>
-    ) : (
-      <StyledFailReason key={text}>
-        <img src={xIcon} alt="실패" />
-        {text}
-      </StyledFailReason>
-    ),
-  );
-}
 
 // 트루샷 인증 결과 (성공: 판매자 촬영 사진 + 성공 이유 / 실패: 실패 이유)
 export default function RequestResult() {
@@ -221,18 +117,17 @@ export default function RequestResult() {
 
   const config = RESULT_CONFIG[status];
   const isSuccess = status === "success";
+  const successReasons = getSuccessReasons(request);
 
   return (
     <>
       <BackHeader label={config.backLabel} />
       <StyledContent>
-        <StyledTitleRow $color={config.color}>
-          <StyledTitle>
-            {config.lines[0]}
-            <br />
-            {config.lines[1]}
-          </StyledTitle>
-        </StyledTitleRow>
+        <ResultTitle color={config.color}>
+          {config.lines[0]}
+          <br />
+          {config.lines[1]}
+        </ResultTitle>
 
         <StyledCard $gap={config.missionGap}>
           {MISSIONS.map((mission, index) => (
@@ -247,9 +142,14 @@ export default function RequestResult() {
 
         <StyledCard>
           <StyledCardTitle $weight={config.reasonsWeight}>{config.reasonsTitle}</StyledCardTitle>
-          <StyledReasons>
-            {isSuccess ? <SuccessReasons request={request} /> : <FailReasons request={request} />}
-          </StyledReasons>
+          {isSuccess ? (
+            <ReasonList
+              reasons={successReasons.checks.map((text) => ({ passed: true, text }))}
+              notes={successReasons.notes}
+            />
+          ) : (
+            <ReasonList reasons={getFailReasons(request)} />
+          )}
         </StyledCard>
       </StyledContent>
 
