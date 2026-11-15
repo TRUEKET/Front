@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
@@ -9,11 +9,11 @@ import ScanConfirmModal from "../../../components/scan/ScanConfirmModal.jsx";
 import ReportHistorySheet from "../../../components/scan/ReportHistorySheet.jsx";
 import AiPolicySheet from "./AiPolicySheet.jsx";
 import TalkDetailSheet from "./TalkDetailSheet.jsx";
-import { BehaviorChip, PhotoTag, TalkBubble, TalkDashedLine, TalkLine } from "./ScanTalkParts.jsx";
+import { BehaviorChip } from "./ScanTalkParts.jsx";
+import TalkCard from "../../../components/scan/TalkCard.jsx";
 import safeCheckIcon from "../../../assets/icons/result_safe_check.svg";
 import sparkleIcon from "../../../assets/icons/result_sparkle.svg";
 import infoIcon from "../../../assets/icons/result_info.svg";
-import chevronIcon from "../../../assets/icons/box_chevron_right.svg";
 import thumbsUpIcon from "../../../assets/icons/result_thumbs_up.svg";
 import thumbsUpSelectedIcon from "../../../assets/icons/result_thumbs_up_selected.svg";
 import thumbsDownIcon from "../../../assets/icons/result_thumbs_down.svg";
@@ -235,66 +235,6 @@ const StyledSafeNotice = styled.p`
   text-align: center;
 `;
 
-// 주요 대화 카드 윗줄: 제목 묶음 + 자세히 보기 버튼 (아래쪽 맞춤)
-const StyledTalkHeader = styled.div`
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-`;
-
-// '주요 대화' 제목 + 요약 문구, 자세히 보기 버튼을 뺀 나머지 폭을 모두 차지
-const StyledTalkTitleGroup = styled.div`
-  display: flex;
-  flex: 1 0 0;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-`;
-
-// '주요 대화' 제목
-const StyledTalkTitle = styled.p`
-  margin: 0;
-  color: #4e4a57;
-  font-size: 16px;
-  font-weight: 700;
-`;
-
-// 자세히 보기 버튼 (화살표 아이콘을 좌우로 뒤집어 방향을 맞춤), 누르면 대화 자세히 보기 바텀시트
-const StyledMoreButton = styled.button`
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
-  align-items: center;
-  padding: 0;
-  border: none;
-  background: none;
-  color: #4e4a57;
-  font-family: "Pretendard", sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-
-  img {
-    display: block;
-    transform: scaleX(-1);
-  }
-`;
-
-// 대화 한 건 안의 작은 묶음 (사진 태그 + 말풍선 / 행동 칩 + 이유)
-const StyledTalkItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-// 그 행동을 사기 의심으로 본 이유 설명
-const StyledReason = styled.p`
-  margin: 0;
-  color: #4e4a57;
-  font-size: 12px;
-  font-weight: 400;
-`;
-
 // 안전 결과에서 쓰는 원본 사진 보기 버튼 (카드 왼쪽에 붙임)
 const StyledOriginalButton = styled(Button)`
   align-self: flex-start;
@@ -511,41 +451,16 @@ export default function ScanResult() {
           )}
         </StyledCard>
 
-        <StyledCard>
-          <StyledTalkHeader>
-            <StyledTalkTitleGroup>
-              <StyledTalkTitle>주요 대화</StyledTalkTitle>
-              <StyledCardText $size={hasFlags ? 10 : 12}>{talkSummary}</StyledCardText>
-            </StyledTalkTitleGroup>
-            {hasFlags && (
-              <StyledMoreButton type="button" onClick={() => setIsTalkDetailOpen(true)}>
-                자세히 보기
-                <img src={chevronIcon} alt="" />
-              </StyledMoreButton>
-            )}
-          </StyledTalkHeader>
-
-          {hasFlags ? (
-            result.conversations.map((talk) => (
-              <Fragment key={`${talk.photo}-${talk.behavior}`}>
-                <TalkLine />
-                <StyledTalkItem>
-                  <PhotoTag photo={talk.photo} />
-                  <TalkBubble level={talk.level}>{talk.text}</TalkBubble>
-                </StyledTalkItem>
-                <TalkDashedLine />
-                <StyledTalkItem>
-                  <BehaviorChip level={talk.level}>{talk.behavior}</BehaviorChip>
-                  <StyledReason>{talk.reason}</StyledReason>
-                </StyledTalkItem>
-              </Fragment>
-            ))
-          ) : (
-            <StyledOriginalButton variant="disabled" type="button">
-              원본 사진 보기 ({result.photoCount}장)
-            </StyledOriginalButton>
-          )}
-        </StyledCard>
+        <TalkCard
+          conversations={result.conversations}
+          summary={talkSummary}
+          summarySize={hasFlags ? 10 : 12}
+          onMore={hasFlags ? () => setIsTalkDetailOpen(true) : undefined}
+        >
+          <StyledOriginalButton variant="disabled" type="button">
+            원본 사진 보기 ({result.photoCount}장)
+          </StyledOriginalButton>
+        </TalkCard>
 
         <StyledTrueshotButton type="button">
           <StyledTrueshotTitle>판매자에게 트루샷 요청하기</StyledTrueshotTitle>
