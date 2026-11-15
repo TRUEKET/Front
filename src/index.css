@@ -101,7 +101,6 @@ p {
 }
 
 main {
-  flex: 1;
   box-sizing: border-box;
   padding-bottom: 100px; /* 고정된 푸터(하단 14px + 높이 70px)에 콘텐츠가 가리지 않도록 */
 }
