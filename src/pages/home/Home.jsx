@@ -1,14 +1,15 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import searchIcon from "../../assets/icons/home_search.svg";
 import ctaArrowIcon from "../../assets/icons/home_cta_arrow.svg";
 
-// 홈 화면 전체 영역: 검색 섹션 + CTA 카드 섹션을 세로로 나열
+// 홈 화면 전체 영역: 검색 섹션 + CTA 카드 섹션을 세로로 나열 (헤더 바로 아래 여백 48)
 const StyledHome = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 48px;
+  padding: 48px 16px 16px;
 `;
 
 // 안내 문구 + 전화번호 검색창
@@ -45,8 +46,8 @@ const StyledSubtitle = styled.p`
   font-weight: 500;
 `;
 
-// 전화번호 검색창 (아이콘 + 입력칸)
-const StyledSearchBox = styled.div`
+// 전화번호 검색창 (아이콘 + 입력칸), 제출하면 검색결과 화면으로 이동
+const StyledSearchForm = styled.form`
   display: flex;
   align-items: center;
   gap: 10px;
@@ -140,6 +141,15 @@ const StyledCtaArrow = styled.img`
 `;
 
 export default function Home() {
+  const [phone, setPhone] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!phone.trim()) return;
+    navigate(`/search/result?q=${encodeURIComponent(phone.trim())}`);
+  };
+
   return (
     <StyledHome>
       <StyledSearchSection>
@@ -147,10 +157,15 @@ export default function Home() {
           <StyledTitle>티켓 사기가 의심스러우신가요?</StyledTitle>
           <StyledSubtitle>다른 사용자들의 신고 이력을 확인할 수 있어요</StyledSubtitle>
         </StyledHeading>
-        <StyledSearchBox>
+        <StyledSearchForm onSubmit={handleSubmit}>
           <StyledSearchIcon src={searchIcon} alt="" />
-          <StyledSearchInput type="tel" placeholder="010XXXXXXXX" />
-        </StyledSearchBox>
+          <StyledSearchInput
+            type="tel"
+            placeholder="010XXXXXXXX"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </StyledSearchForm>
       </StyledSearchSection>
 
       <StyledCtaSection>
