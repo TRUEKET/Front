@@ -16,7 +16,7 @@ const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 export const EMAIL_ERROR = "형식이 올바르지 않습니다.";
 export const PASSWORD_ERROR = "8자 이상, 영문과 숫자를 함께 입력해 주세요.";
 
-export const isValidEmail =(email) => EMAIL_REGEX.test(email.trim());
+export const isValidEmail = (email) => EMAIL_REGEX.test(email.trim());
 
 export const isValidPassword = (password) => PASSWORD_REGEX.test(password);
 
