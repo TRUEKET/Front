@@ -9,8 +9,18 @@ import CaptureTiles from "../../../components/scan/CaptureTiles.jsx";
 // 고를 수 있는 거래 종류
 const TRADE_TYPES = ["양도", "대리티켓팅", "취소표 티켓팅", "아이디 옮기기", "기타"];
 
-// 금전 피해 자료는 최대 5장까지
-const MAX_EVIDENCE_IMAGES = 5;
+// 금전 피해 자료는 1장만 (서버의 송금 증빙 검증이 사진 1장만 받음)
+const MAX_EVIDENCE_IMAGES = 1;
+
+// 미리보기 주소(blob:)에서 원본 파일을 다시 꺼냄
+// (이 화면을 떠나면 CaptureTiles가 미리보기 주소를 해제해서, 떠나기 전에 파일로 바꿔 둠)
+const toFiles = (images, prefix) =>
+  Promise.all(
+    images.map(async ({ url }, index) => {
+      const blob = await fetch(url).then((response) => response.blob());
+      return new File([blob], `${prefix}-${index + 1}`, { type: blob.type });
+    }),
+  );
 
 // 화면 전체 세로 배치 (요소 사이 16px), 글자 행간은 Figma와 같은 normal
 const StyledContent = styled.div`
@@ -145,19 +155,16 @@ export default function Report() {
   const [evidenceImages, setEvidenceImages] = useState([]);
   const [memo, setMemo] = useState("");
 
-  // 거래 종류와 두 종류의 사진이 모두 있어야 판독 가능
-  const canScan = tradeType !== null && chatImages.length > 0 && evidenceImages.length > 0;
+  const [preparing, setPreparing] = useState(false);
 
-  // TODO: API 연동 시 사진과 메모를 함께 보내 판독 요청
-  const handleScan = () => {
-    navigate("/report/loading", {
-      state: {
-        tradeType,
-        chatCount: chatImages.length,
-        evidenceCount: evidenceImages.length,
-        memo: memo.trim(),
-      },
-    });
+  // 거래 종류와 두 종류의 사진이 모두 있어야 판독 가능
+  const canScan = tradeType !== null && chatImages.length > 0 && evidenceImages.length > 0 && !preparing;
+
+  // 대화 캡처는 판독(POST /analyze), 금전 피해 자료는 송금 증빙 검증(POST /reports/evidence)에 쓰도록 로딩 화면으로 넘김
+  const handleScan = async () => {
+    setPreparing(true);
+    const [captures, [evidence]] = await Promise.all([toFiles(chatImages, "capture"), toFiles(evidenceImages, "evidence")]);
+    navigate("/report/loading", { state: { tradeType, captures, evidence, memo: memo.trim() } });
   };
 
   return (
@@ -211,7 +218,7 @@ export default function Report() {
               <br />
               개인정보는 자동으로 가려 판독됩니다.
               <br />
-              사진은 최대 5장 까지 업로드 가능합니다.(장당 10MB 이내)
+              송금 내역 사진 1장을 업로드해 주세요.(PNG, JPG 5MB 이내)
             </StyledNote>
           </StyledUploadGroup>
         </StyledSection>

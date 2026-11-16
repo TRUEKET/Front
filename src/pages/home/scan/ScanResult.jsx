@@ -4,7 +4,14 @@ import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import ScanBox from "../../../components/common/ScanBox.jsx";
 import Button from "../../../components/common/Button.jsx";
-import { deleteAnalysis, sendAnalysisFeedback } from "../../../api/analyze.js";
+import {
+  countAccounts,
+  deleteAnalysis,
+  findIdentifier,
+  getReportTitle,
+  sendAnalysisFeedback,
+  toStageStatus,
+} from "../../../api/analyze.js";
 import ScanConfirmModal from "../../../components/scan/ScanConfirmModal.jsx";
 import AiPolicySheet from "./AiPolicySheet.jsx";
 import TalkDetailSheet from "./TalkDetailSheet.jsx";
@@ -48,13 +55,6 @@ const STATUS_CONFIG = {
   },
 };
 
-// 서버 단계 → 화면 상태
-const STAGE_STATUS = {
-  SAFE: "safe",
-  SUSPECT: "caution",
-  DANGER: "danger",
-};
-
 // 판독 기준 A~F → 행동 칩 이름 (서버 안내대로 A~F 순서로 표시)
 const CRITERIA = [
   { key: "A", label: "로그인 정보 요구" },
@@ -85,19 +85,10 @@ const TRADE_TYPE_LABELS = {
   OTHER: "기타",
 };
 
-// 신고 이력 박스 제목 (판독 응답에는 식별자별 신고 인원이 없어 단계로만 안내)
-const getReportTitle = ({ reportStage, lookupWarning }) => {
-  if (reportStage === "DANGER") return "피해 신고 이력이 있어요";
-  if (reportStage === "SUSPECT") return "의심 제보 이력이 있어요";
-  if (lookupWarning) return "신고 이력을 확인하지 못했어요";
-  return "피해 신고·의심 제보 이력이 없어요";
-};
-
 // 판독 응답 → 화면에서 쓰는 형태
 // photoUrls: 올린 순서대로 만든 로컬 미리보기 주소 (imageNumber - 1 번째와 연결)
 const toScanResult = (response, photoUrls) => {
   const { assessment, conversations, identifiers } = response;
-  const findIdentifier = (type) => identifiers.find((identifier) => identifier.type === type)?.value ?? "";
 
   // 같은 사진, 같은 기준의 근거는 하나만 (강한 근거가 먼저 오도록 정렬 후 중복 제거)
   const seen = new Set();
@@ -121,16 +112,17 @@ const toScanResult = (response, photoUrls) => {
     });
 
   return {
-    status: STAGE_STATUS[assessment.finalStage] ?? "safe",
-    reportStatus: STAGE_STATUS[assessment.reportStage] ?? "safe",
+    status: toStageStatus(assessment.finalStage),
+    reportStatus: toStageStatus(assessment.reportStage),
     reportTitle: getReportTitle(assessment),
     tradeType: TRADE_TYPE_LABELS[response.detectedType] ?? TRADE_TYPE_LABELS.OTHER,
-    account: findIdentifier("ACCOUNT"),
-    phone: findIdentifier("PHONE"),
-    sns: findIdentifier("SNS"),
+    account: findIdentifier(identifiers, "ACCOUNT"),
+    phone: findIdentifier(identifiers, "PHONE"),
+    sns: findIdentifier(identifiers, "SNS"),
+    accountCount: countAccounts(identifiers),
     behaviors: CRITERIA.map(({ key, label }) => ({
       label,
-      level: STAGE_STATUS[assessment.chat.criteria?.[key]] ?? "safe",
+      level: toStageStatus(assessment.chat.criteria?.[key]),
     })),
     photoCount: conversations.imageCount,
     flaggedPhotoCount: conversations.suspiciousImageCount,
@@ -483,6 +475,7 @@ export default function ScanResult() {
       state: {
         analyzeId,
         showSuspicionReport: result.showSuspicionReport,
+        accountCount: result.accountCount,
         tradeType: result.tradeType,
         account: result.account,
         phone: result.phone,

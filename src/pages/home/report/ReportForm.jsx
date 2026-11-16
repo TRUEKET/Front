@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
-import { MOCK_AI_ACCOUNT_CHECK, MOCK_AI_CHECK_DELAY_MS, MOCK_REPORT_INFO } from "../../../mock/scanReport.js";
 import CaptureTiles from "../../../components/scan/CaptureTiles.jsx";
 import ScanConfirmModal from "../../../components/scan/ScanConfirmModal.jsx";
+import { createReport, getDefaultAccountIndex, verifyReportEvidence } from "../../../api/report.js";
 
 // 신고 종류 탭 (suspect 의심 제보 / fraud 사기 신고)
 const REPORT_TYPES = [
@@ -197,23 +197,33 @@ const StyledBottomAction = styled.div`
 // 판독 결과를 바탕으로 의심 제보 또는 사기 신고를 등록하는 화면
 // mode: scan 판독결과에서 진입 (의심 제보/사기 신고 탭 + 송금 기록 사진 확인)
 //       report 신고하기 흐름에서 진입 (사기 신고만, 금전 피해 자료는 앞에서 이미 확인해서 사진 카드 없음)
+// state: 앞 화면에서 넘겨준 판독 id(analyzeId)와 신고 정보 (신고하기 흐름은 송금 증빙 토큰 evidenceToken도 같이 옴)
 export default function ReportForm({ mode = "scan" }) {
   const navigate = useNavigate();
   const { state } = useLocation();
-  const [searchParams] = useSearchParams();
-  const info = state ?? MOCK_REPORT_INFO;
+  const info = state ?? {};
 
   const [reportType, setReportType] = useState("fraud");
   const [agreed, setAgreed] = useState(false);
   const [showAgreeError, setShowAgreeError] = useState(false);
   const [images, setImages] = useState([]);
-  // idle 확인 전 / checking 확인 중 / match 계좌 일치 / mismatch 계좌 불일치
+  // idle 확인 전 / checking 확인 중 / match 계좌 일치 / mismatch 계좌 불일치 / error 확인 요청 실패
   const [aiCheck, setAiCheck] = useState("idle");
+  const [aiErrorMessage, setAiErrorMessage] = useState("");
+  const [evidenceToken, setEvidenceToken] = useState(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const isFraud = reportType === "fraud";
   const isReportFlow = mode === "report";
-  const visibleTypes = isReportFlow ? REPORT_TYPES.filter(({ id }) => id === "fraud") : REPORT_TYPES;
+
+  // 판독 id 없이 들어오면(새로고침, 주소 직접 입력) 신고할 판독이 없어서 처음 화면으로 보냄
+  if (!info.analyzeId) return <Navigate to={isReportFlow ? "/report" : "/scan"} replace />;
+
+  // 의심 제보는 판독 결과가 허용할 때만 고를 수 있음 (신고하기 흐름은 사기 신고만)
+  const canSuspect = !isReportFlow && Boolean(info.showSuspicionReport);
+  const visibleTypes = canSuspect ? REPORT_TYPES : REPORT_TYPES.filter(({ id }) => id === "fraud");
+  const isFraud = reportType === "fraud";
 
   const handleAgreeChange = (checked) => {
     setAgreed(checked);
@@ -224,13 +234,31 @@ export default function ReportForm({ mode = "scan" }) {
   const handleImagesChange = (nextImages) => {
     setImages(nextImages);
     setAiCheck("idle");
+    setEvidenceToken(null);
   };
 
-  // TODO: API 연동 전까지 목 결과로 AI 계좌 확인
-  const handleAiCheck = () => {
+  // 송금 기록 사진의 받는 계좌가 판독 계좌와 같은지 서버에서 확인 (계좌가 2개 이상이면 첫 번째 계좌로 확인)
+  const handleAiCheck = async () => {
     setAiCheck("checking");
-    const result = searchParams.get("aiCheck") === "mismatch" ? "mismatch" : MOCK_AI_ACCOUNT_CHECK;
-    setTimeout(() => setAiCheck(result), MOCK_AI_CHECK_DELAY_MS);
+    try {
+      const blob = await fetch(images[0].url).then((response) => response.blob());
+      const file = new File([blob], "evidence-1", { type: blob.type });
+      const data = await verifyReportEvidence({
+        analysisId: info.analyzeId,
+        accountIndex: getDefaultAccountIndex(info.accountCount),
+        file,
+      });
+      setEvidenceToken(data.evidenceToken);
+      setAiCheck("match");
+    } catch (error) {
+      // 422: 사진 속 계좌가 판독 계좌와 다름
+      if (error.status === 422) {
+        setAiCheck("mismatch");
+        return;
+      }
+      setAiErrorMessage(error.message);
+      setAiCheck("error");
+    }
   };
 
   // 사기 신고는 사실 기반 동의를 해야 등록 재확인 창을 띄움
@@ -242,9 +270,24 @@ export default function ReportForm({ mode = "scan" }) {
     setIsConfirmOpen(true);
   };
 
-  // TODO: API 연동 시 신고 등록 요청 후 이동
-  const handleConfirm = () => {
-    navigate("/", { replace: true });
+  // 신고 등록 요청 후 홈으로 이동, 실패하면 확인창을 닫고 서버 문구를 보여줌
+  // 송금 증빙 토큰은 사기 신고일 때만 같이 보냄 (판독결과에서 왔으면 AI 확인 결과, 신고하기 흐름이면 앞에서 받은 값)
+  const handleConfirm = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      await createReport({
+        analysisId: info.analyzeId,
+        kind: isFraud ? "FRAUD" : "SUSPICION",
+        evidenceToken: isFraud ? (isReportFlow ? info.evidenceToken : evidenceToken) : undefined,
+      });
+      navigate("/", { replace: true });
+    } catch (error) {
+      setIsConfirmOpen(false);
+      setSubmitError(error.message);
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -259,8 +302,8 @@ export default function ReportForm({ mode = "scan" }) {
               role="radio"
               aria-checked={reportType === id}
               $selected={reportType === id}
-              $static={isReportFlow}
-              disabled={isReportFlow}
+              $static={!canSuspect}
+              disabled={!canSuspect}
               onClick={() => setReportType(id)}
             >
               <StyledTabTitle>{title}</StyledTabTitle>
@@ -274,7 +317,7 @@ export default function ReportForm({ mode = "scan" }) {
           {INFO_ROWS.map(({ key, label }) => (
             <StyledInfoRow key={key}>
               <StyledInfoLabel>{label}</StyledInfoLabel>
-              <StyledInfoValue>{info[key]}</StyledInfoValue>
+              <StyledInfoValue>{info[key] || "-"}</StyledInfoValue>
             </StyledInfoRow>
           ))}
         </StyledCard>
@@ -298,11 +341,13 @@ export default function ReportForm({ mode = "scan" }) {
               <StyledCard>
                 <StyledCardTitle>송금 기록 사진</StyledCardTitle>
                 <StyledUploadGroup>
-                  <CaptureTiles images={images} onChange={handleImagesChange} />
+                  {/* 서버의 송금 증빙 검증이 사진 1장만 받음 */}
+                  <CaptureTiles images={images} onChange={handleImagesChange} maxImages={1} />
                   <StyledNote>사진 속 계좌와 신고 정보 계좌가 일치하는 지 확인합니다.</StyledNote>
                   {aiCheck === "mismatch" && (
                     <StyledNote $error>사진 속 받는 계좌가 신고 정보 계좌와 상이합니다. 다시 올려주세요</StyledNote>
                   )}
+                  {aiCheck === "error" && <StyledNote $error>{aiErrorMessage}</StyledNote>}
                 </StyledUploadGroup>
                 {aiCheck === "match" ? (
                   <MainButton type="button" disabled>
@@ -315,18 +360,20 @@ export default function ReportForm({ mode = "scan" }) {
                     disabled={images.length === 0 || aiCheck === "checking"}
                     onClick={handleAiCheck}
                   >
-                    AI로 확인하기
+                    {aiCheck === "checking" ? "AI로 확인 중..." : "AI로 확인하기"}
                   </MainButton>
                 )}
               </StyledCard>
             )}
           </>
         )}
+
+        {submitError && <StyledNote $error>{submitError}</StyledNote>}
       </StyledContent>
 
       <StyledBottomAction>
-        <MainButton type="button" onClick={handleRegister}>
-          등록하기
+        <MainButton type="button" disabled={submitting} onClick={handleRegister}>
+          {submitting ? "등록 중..." : "등록하기"}
         </MainButton>
       </StyledBottomAction>
 
