@@ -1,12 +1,11 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import ScanBox from "../../../components/common/ScanBox.jsx";
 import Button from "../../../components/common/Button.jsx";
-import { MOCK_SCAN_RESULTS } from "../../../mock/scanResult.js";
+import { deleteAnalysis, sendAnalysisFeedback } from "../../../api/analyze.js";
 import ScanConfirmModal from "../../../components/scan/ScanConfirmModal.jsx";
-import ReportHistorySheet from "../../../components/scan/ReportHistorySheet.jsx";
 import AiPolicySheet from "./AiPolicySheet.jsx";
 import TalkDetailSheet from "./TalkDetailSheet.jsx";
 import { BehaviorChip } from "./ScanTalkParts.jsx";
@@ -49,8 +48,98 @@ const STATUS_CONFIG = {
   },
 };
 
-// 연동 전에는 ?status=safe|caution|danger 로 볼 결과를 고름 (없으면 안전)
-const DEFAULT_STATUS = "safe";
+// 서버 단계 → 화면 상태
+const STAGE_STATUS = {
+  SAFE: "safe",
+  SUSPECT: "caution",
+  DANGER: "danger",
+};
+
+// 판독 기준 A~F → 행동 칩 이름 (서버 안내대로 A~F 순서로 표시)
+const CRITERIA = [
+  { key: "A", label: "로그인 정보 요구" },
+  { key: "B", label: "수상한 송금 요구" },
+  { key: "C", label: "확인 회피" },
+  { key: "D", label: "판단 재촉" },
+  { key: "E", label: "불리한 조건" },
+  { key: "F", label: "정보 불일치" },
+];
+
+// 근거 문장의 기준 이름 (X는 칩 6개에 없는 기준 밖 수상한 요구)
+const CRITERION_LABELS = {
+  ...Object.fromEntries(CRITERIA.map(({ key, label }) => [key, label])),
+  X: "기타 수상한 요구",
+};
+
+// 근거 세기 → 말풍선, 칩 색 (강함 빨강, 주의 노랑)
+const STRENGTH_LEVEL = {
+  STRONG: "danger",
+  CAUTION: "caution",
+};
+
+const TRADE_TYPE_LABELS = {
+  TRANSFER: "양도",
+  AOM: "아옮",
+  PROXY: "대리티켓팅",
+  CANCEL: "취켓 대행",
+  OTHER: "기타",
+};
+
+// 신고 이력 박스 제목 (판독 응답에는 식별자별 신고 인원이 없어 단계로만 안내)
+const getReportTitle = ({ reportStage, lookupWarning }) => {
+  if (reportStage === "DANGER") return "피해 신고 이력이 있어요";
+  if (reportStage === "SUSPECT") return "의심 제보 이력이 있어요";
+  if (lookupWarning) return "신고 이력을 확인하지 못했어요";
+  return "피해 신고·의심 제보 이력이 없어요";
+};
+
+// 판독 응답 → 화면에서 쓰는 형태
+// photoUrls: 올린 순서대로 만든 로컬 미리보기 주소 (imageNumber - 1 번째와 연결)
+const toScanResult = (response, photoUrls) => {
+  const { assessment, conversations, identifiers } = response;
+  const findIdentifier = (type) => identifiers.find((identifier) => identifier.type === type)?.value ?? "";
+
+  // 같은 사진, 같은 기준의 근거는 하나만 (강한 근거가 먼저 오도록 정렬 후 중복 제거)
+  const seen = new Set();
+  const talks = conversations.images
+    .flatMap(({ imageNumber, countedSignals }) =>
+      countedSignals.map((signal) => ({
+        photo: imageNumber,
+        imageUrl: photoUrls[imageNumber - 1],
+        text: signal.quote,
+        level: STRENGTH_LEVEL[signal.strength] ?? "caution",
+        behavior: CRITERION_LABELS[signal.criterion] ?? CRITERION_LABELS.X,
+        reason: signal.reason,
+      })),
+    )
+    .sort((a, b) => a.photo - b.photo || (a.level === "danger" ? -1 : 0) - (b.level === "danger" ? -1 : 0))
+    .filter(({ photo, behavior }) => {
+      const key = `${photo}-${behavior}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+  return {
+    status: STAGE_STATUS[assessment.finalStage] ?? "safe",
+    reportStatus: STAGE_STATUS[assessment.reportStage] ?? "safe",
+    reportTitle: getReportTitle(assessment),
+    tradeType: TRADE_TYPE_LABELS[response.detectedType] ?? TRADE_TYPE_LABELS.OTHER,
+    account: findIdentifier("ACCOUNT"),
+    phone: findIdentifier("PHONE"),
+    sns: findIdentifier("SNS"),
+    behaviors: CRITERIA.map(({ key, label }) => ({
+      label,
+      level: STAGE_STATUS[assessment.chat.criteria?.[key]] ?? "safe",
+    })),
+    photoCount: conversations.imageCount,
+    flaggedPhotoCount: conversations.suspiciousImageCount,
+    conversations: talks,
+    showReportButton: assessment.showReportButton,
+    showSuspicionReport: assessment.showSuspicionReport,
+    showTrueshot: assessment.chat.showTrueshotOnResult,
+  };
+};
 
 // 화면 전체 세로 배치 (요소 사이 16px, 가운데 정렬), 글자 행간은 Figma와 같은 normal
 const StyledContent = styled.div`
@@ -337,26 +426,44 @@ const StyledThanks = styled.p`
   font-size: 10px;
   font-weight: 500;
 `;
-
-// 01012345678 → 010-1234-5678 (11자리가 아니면 그대로)
-const formatPhone = (phone) => phone.replace(/^(\d{3})(\d{4})(\d{4})$/, "$1-$2-$3");
-
 // AI 판독 결과 화면: 안전·의심·위험 결과를 하나의 레이아웃에서 status에 맞춰 보여줌
+// 로딩 화면에서 판독 응답(state.result)과 올린 캡처 파일(state.captures)을 받아서 보여줌
 export default function ScanResult() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const { state } = useLocation();
+  const response = state?.result;
+  const analyzeId = response?.analyzeId;
+
   const [feedback, setFeedback] = useState(null);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [isFeedbackSending, setIsFeedbackSending] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isPolicyOpen, setIsPolicyOpen] = useState(false);
   const [isTalkDetailOpen, setIsTalkDetailOpen] = useState(false);
 
-  const statusParam = searchParams.get("status");
-  const result = MOCK_SCAN_RESULTS[statusParam] ?? MOCK_SCAN_RESULTS[DEFAULT_STATUS];
-  const config = STATUS_CONFIG[result.status];
+  // 원본 사진 보기용 로컬 미리보기 주소 (올린 순서 그대로)
+  const photoUrls = useMemo(() => (state?.captures ?? []).map((file) => URL.createObjectURL(file)), [state]);
+  const result = useMemo(() => (response ? toScanResult(response, photoUrls) : null), [response, photoUrls]);
 
+  // 화면을 떠날 때 미리보기 주소 해제 + 서버의 판독 결과 삭제 (신고하러 가는 경우는 신고에 필요해서 남겨 둠)
+  // 개발 모드(StrictMode)는 마운트 직후 정리를 한 번 더 실행하므로, 실제로 떠날 때만 실행되도록 한 박자 미룸
+  const keepAnalysisRef = useRef(false);
+  const leaveTimerRef = useRef(null);
+  useEffect(() => {
+    clearTimeout(leaveTimerRef.current);
+    return () => {
+      leaveTimerRef.current = setTimeout(() => {
+        photoUrls.forEach((url) => URL.revokeObjectURL(url));
+        if (analyzeId && !keepAnalysisRef.current) deleteAnalysis(analyzeId).catch(() => {});
+      }, 0);
+    };
+  }, [photoUrls, analyzeId]);
+
+  // 새로고침, 주소 직접 입력처럼 판독 응답 없이 들어오면 판독 화면으로 보냄
+  if (!result) return <Navigate to="/scan" replace />;
+
+  const config = STATUS_CONFIG[result.status];
   const flaggedBehaviorCount = result.behaviors.filter(({ level }) => level !== "safe").length;
-  const flaggedPhotoCount = new Set(result.conversations.map(({ photo }) => photo)).size;
   const hasFlags = result.conversations.length > 0;
 
   const behaviorSummary =
@@ -365,16 +472,20 @@ export default function ScanResult() {
       : `티켓 거래 사기에서 자주 나오는 행동 ${result.behaviors.length}가지 중 ${flaggedBehaviorCount}가지를 찾았어요.`;
 
   const talkSummary = hasFlags
-    ? `사진 ${result.photoCount}장 중 ${flaggedPhotoCount}장에서 사기 의심 정황을 찾았어요.`
+    ? `사진 ${result.photoCount}장 중 ${result.flaggedPhotoCount}장에서 사기 의심 정황을 찾았어요.`
     : `사진 ${result.photoCount}장에서 사기 의심 정황을 찾지 못했어요.`;
 
   // 판독 결과에서 확인된 거래 정보를 그대로 넘겨 판독 기반 신고 화면으로 이동
+  // (신고 등록에 판독 결과가 필요해서 이 경우는 서버의 판독 결과를 지우지 않음)
   const goToReport = () => {
+    keepAnalysisRef.current = true;
     navigate("/scan/report", {
       state: {
+        analyzeId,
+        showSuspicionReport: result.showSuspicionReport,
         tradeType: result.tradeType,
         account: result.account,
-        phone: formatPhone(result.phone),
+        phone: result.phone,
         sns: result.sns,
       },
     });
@@ -387,7 +498,23 @@ export default function ScanResult() {
     setIsBackModalOpen(true);
   };
 
-  const toggleFeedback = (value) => setFeedback((prev) => (prev === value ? null : value));
+  // 피드백은 판독당 한 번만 보낼 수 있어서, 보내고 나면 두 버튼 모두 막음
+  const sendFeedback = async (value) => {
+    if (feedback || isFeedbackSending) return;
+    setIsFeedbackSending(true);
+    try {
+      const { message } = await sendAnalysisFeedback(analyzeId, value === "up" ? "HELPFUL" : "INCORRECT");
+      setFeedback(value);
+      setFeedbackMessage(message ?? "소중한 의견 감사합니다");
+    } catch (error) {
+      // 409: 이미 이 판독에 피드백을 보냄
+      if (error.status === 409) setFeedback(value);
+      setFeedbackMessage(error.status === 409 ? "이미 의견을 보내주셨어요" : error.message);
+    } finally {
+      setIsFeedbackSending(false);
+    }
+  };
+  const isFeedbackLocked = Boolean(feedback) || isFeedbackSending;
 
   return (
     <>
@@ -416,13 +543,8 @@ export default function ScanResult() {
           </StyledHeadlineGroup>
         </StyledHero>
 
-        <ScanBox
-          status={result.status}
-          title={`피해 신고·의심 제보 이력 ${result.reportCount}회`}
-          account={result.account}
-          phone={result.phone}
-          onClick={() => setIsHistoryOpen(true)}
-        />
+        {/* TODO: 판독 응답에 식별자별 신고 인원이 생기면 이력 횟수와 신고 이력 시트(ReportHistorySheet) 다시 연결 */}
+        <ScanBox status={result.reportStatus} title={result.reportTitle} account={result.account} phone={result.phone} />
 
         <StyledCard>
           <StyledCardHeader>
@@ -462,13 +584,16 @@ export default function ScanResult() {
           </StyledOriginalButton>
         </TalkCard>
 
-        <StyledTrueshotButton type="button">
-          <StyledTrueshotTitle>판매자에게 트루샷 요청하기</StyledTrueshotTitle>
-          <StyledTrueshotSub>실시간 사진 인증 기능</StyledTrueshotSub>
-        </StyledTrueshotButton>
+        {/* 아옮, 대리티켓팅, 취켓 대행처럼 서버가 트루샷을 권하지 않는 거래는 숨김 */}
+        {result.showTrueshot && (
+          <StyledTrueshotButton type="button">
+            <StyledTrueshotTitle>판매자에게 트루샷 요청하기</StyledTrueshotTitle>
+            <StyledTrueshotSub>실시간 사진 인증 기능</StyledTrueshotSub>
+          </StyledTrueshotButton>
+        )}
 
-        {config.showReportHint && <StyledReportHint>이미 금전적 피해를 봤다면?</StyledReportHint>}
-        {config.showReport && (
+        {result.showReportButton && config.showReportHint && <StyledReportHint>이미 금전적 피해를 봤다면?</StyledReportHint>}
+        {result.showReportButton && (
           <Button variant="disabled" type="button" onClick={goToReport}>
             트루켓에 신고하기
           </Button>
@@ -486,7 +611,8 @@ export default function ScanResult() {
               type="button"
               $selected={feedback === "up"}
               aria-pressed={feedback === "up"}
-              onClick={() => toggleFeedback("up")}
+              disabled={isFeedbackLocked}
+              onClick={() => sendFeedback("up")}
             >
               <img src={feedback === "up" ? thumbsUpSelectedIcon : thumbsUpIcon} alt="" />
               도움이 되었어요
@@ -495,7 +621,8 @@ export default function ScanResult() {
               type="button"
               $selected={feedback === "down"}
               aria-pressed={feedback === "down"}
-              onClick={() => toggleFeedback("down")}
+              disabled={isFeedbackLocked}
+              onClick={() => sendFeedback("down")}
             >
               {feedback === "down" ? (
                 <StyledWhiteIcon src={thumbsDownIcon} alt="" />
@@ -505,7 +632,7 @@ export default function ScanResult() {
               결과가 이상해요
             </StyledFeedbackButton>
           </StyledFeedbackRow>
-          {feedback && <StyledThanks>소중한 의견 감사합니다</StyledThanks>}
+          {feedbackMessage && <StyledThanks>{feedbackMessage}</StyledThanks>}
         </StyledFeedback>
       </StyledContent>
 
@@ -522,9 +649,6 @@ export default function ScanResult() {
           onClose={() => setIsBackModalOpen(false)}
           onConfirm={() => navigate(-1)}
         />
-      )}
-      {isHistoryOpen && (
-        <ReportHistorySheet history={result.reportHistory} onClose={() => setIsHistoryOpen(false)} />
       )}
       {isPolicyOpen && <AiPolicySheet onClose={() => setIsPolicyOpen(false)} />}
       {isTalkDetailOpen && (
