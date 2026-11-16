@@ -7,6 +7,7 @@ import removeIcon from "../../../assets/icons/dispute_photo_sample.svg";
 import uploadIcon from "../../../assets/icons/dispute_upload.svg";
 import { MOCK_DISPUTE_REASONS } from "../../../mock/disputeReason.js";
 import { MOCK_DISPUTE_EVIDENCE } from "../../../mock/disputeEvidence.js";
+import { createDispute } from "../../../api/dispute.js";
 
 const MAX_DESCRIPTION = 400;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -323,11 +324,13 @@ export default function DisputeEvidence() {
   const config = MOCK_DISPUTE_EVIDENCE[reason];
   const reasonLabel = MOCK_DISPUTE_REASONS.find(({ id }) => id === reason)?.title;
 
-  // 카드 id별 올린 캡쳐 목록 ({ id, url })
+  // 카드 id별 올린 캡쳐 목록 ({ id, url, file }), 서버가 증빙 종류별로 1장씩 받아서 카드당 1장
   const [uploads, setUploads] = useState({});
   const [description, setDescription] = useState("");
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   // 화면을 떠날 때 미리보기용 임시 URL 정리
   const uploadsRef = useRef(uploads);
@@ -342,7 +345,7 @@ export default function DisputeEvidence() {
   );
 
   const addFiles = (cardId, fileList) => {
-    const added = [...fileList].map((file) => ({ id: crypto.randomUUID(), url: URL.createObjectURL(file) }));
+    const added = [...fileList].map((file) => ({ id: crypto.randomUUID(), url: URL.createObjectURL(file), file }));
     setUploads((prev) => ({ ...prev, [cardId]: [...(prev[cardId] ?? []), ...added] }));
   };
 
@@ -360,10 +363,36 @@ export default function DisputeEvidence() {
     !descriptionTooLong &&
     (!config.descriptionRequired || description.trim() !== "") &&
     EMAIL_PATTERN.test(email.trim()) &&
-    agreed;
+    agreed &&
+    !submitting;
 
-  const handleSubmit = () => {
-    navigate("/search/dispute/complete", { state: { ...state, email: email.trim() }, replace: true });
+  // 증빙을 서버로 보내고 접수 결과(접수번호, 통과/반려)를 완료 화면에 넘김
+  // AI가 증빙을 확인하느라 몇 초 걸려서 그동안 버튼을 막아 둠
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const result = await createDispute({
+        identifier: state?.identifier ?? "",
+        reason,
+        description: description.trim(),
+        sellerEmail: email.trim(),
+        evidence: Object.fromEntries(config.cards.map(({ id }) => [id, uploads[id][0].file])),
+      });
+      navigate("/search/dispute/complete", {
+        state: {
+          ...state,
+          email: email.trim(),
+          receiptNo: result.receiptNo,
+          disputeStatus: result.status,
+          resultMessage: result.message,
+        },
+        replace: true,
+      });
+    } catch (error) {
+      setSubmitError(error.message);
+      setSubmitting(false);
+    }
   };
 
   const descriptionField = (
@@ -405,19 +434,21 @@ export default function DisputeEvidence() {
             </StyledRemoveButton>
           </StyledThumb>
         ))}
-        <StyledAddTile>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(e) => {
-              addFiles(id, e.target.files);
-              e.target.value = "";
-            }}
-          />
-          <img src={uploadIcon} alt="" />
-          캡쳐 추가
-        </StyledAddTile>
+        {/* 카드당 1장만 받아서 올리면 추가 타일을 숨김 (서버는 PNG, JPEG만 받음) */}
+        {(uploads[id]?.length ?? 0) === 0 && (
+          <StyledAddTile>
+            <input
+              type="file"
+              accept="image/png,image/jpeg"
+              onChange={(e) => {
+                addFiles(id, e.target.files);
+                e.target.value = "";
+              }}
+            />
+            <img src={uploadIcon} alt="" />
+            캡쳐 추가
+          </StyledAddTile>
+        )}
       </StyledTiles>
     </StyledEvidenceCard>
   ));
@@ -462,12 +493,13 @@ export default function DisputeEvidence() {
             <StyledCheckBox $checked={agreed} />
             사실과 일치하지 않을 시 불이익이 발생할 수 있다는 것을 인지했습니다.
           </StyledAgree>
+          {submitError && <StyledErrorText>{submitError}</StyledErrorText>}
         </StyledBody>
       </StyledContent>
 
       <StyledBottomAction>
         <MainButton variant="accent" disabled={!canSubmit} onClick={handleSubmit}>
-          제출하기
+          {submitting ? "증빙 확인 중..." : "제출하기"}
         </MainButton>
       </StyledBottomAction>
     </>

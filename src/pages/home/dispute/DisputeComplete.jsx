@@ -3,7 +3,6 @@ import styled from "styled-components";
 import MainButton from "../../../components/common/MainButton.jsx";
 import checkIcon from "../../../assets/icons/dispute_complete_check.svg";
 import { MOCK_DISPUTE_REASONS } from "../../../mock/disputeReason.js";
-import { MOCK_DISPUTE_RECEIPT_NO } from "../../../mock/disputeComplete.js";
 
 // line-height:1로 Figma의 lineHeight 100%에 맞춤
 const StyledContent = styled.div`
@@ -20,7 +19,9 @@ const StyledIcon = styled.img`
   margin-top: 100px;
 `;
 
+// $withoutIcon: 반려라 체크 아이콘이 없을 때 아이콘 자리만큼 위를 띄움
 const StyledMessage = styled.div`
+  margin-top: ${({ $withoutIcon }) => ($withoutIcon ? "100px" : "0")};
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -98,9 +99,11 @@ export default function DisputeComplete() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const reasonLabel = MOCK_DISPUTE_REASONS.find(({ id }) => id === state?.reason)?.title;
+  // 증빙 검증에서 반려되면 서버가 200 + REJECTED로 줌 (접수번호는 그대로 발급됨)
+  const isRejected = state?.disputeStatus === "REJECTED";
 
   const rows = [
-    { label: "접수번호", value: MOCK_DISPUTE_RECEIPT_NO },
+    { label: "접수번호", value: state?.receiptNo },
     { label: "계좌번호", value: state?.account },
     { label: "이유", value: reasonLabel },
   ];
@@ -108,14 +111,23 @@ export default function DisputeComplete() {
   return (
     <>
       <StyledContent>
-        <StyledIcon src={checkIcon} alt="" />
-        <StyledMessage>
-          <StyledTitle>이의제기가 접수되었어요</StyledTitle>
-          <StyledDescription>
-            진행 상황을 {maskEmail(state?.email ?? "")}으로
-            <br />
-            보내드립니다.
-          </StyledDescription>
+        {!isRejected && <StyledIcon src={checkIcon} alt="" />}
+        <StyledMessage $withoutIcon={isRejected}>
+          {isRejected ? (
+            <>
+              <StyledTitle>이의제기가 반려되었어요</StyledTitle>
+              <StyledDescription>{state?.resultMessage}</StyledDescription>
+            </>
+          ) : (
+            <>
+              <StyledTitle>이의제기가 접수되었어요</StyledTitle>
+              <StyledDescription>
+                진행 상황을 {maskEmail(state?.email ?? "")}으로
+                <br />
+                보내드립니다.
+              </StyledDescription>
+            </>
+          )}
         </StyledMessage>
         <StyledReceiptCard>
           {rows.map(({ label, value }) => (

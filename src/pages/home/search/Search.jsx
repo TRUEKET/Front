@@ -116,13 +116,14 @@ export default function Search() {
       return <StyledEmptyText>결과가 없습니다.</StyledEmptyText>;
     }
 
+    // 검색어(원본 값)는 이의제기 신청에 필요해서 주소 대신 화면 이동 state로 넘김
     return (
       <SearchResultBox
         status={toStatus(result.riskLevel)}
         account={searchedQuery}
         reportCount={toCountText(result.fraudCount)}
         suspectCount={toCountText(result.suspicionCount)}
-        onClick={() => navigate(`/search/detail?id=${result.identifierId}`)}
+        onClick={() => navigate(`/search/detail?id=${result.identifierId}`, { state: { query: searchedQuery } })}
       />
     );
   };

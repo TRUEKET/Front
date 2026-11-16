@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import Button from "../../../components/common/Button.jsx";
@@ -310,6 +310,8 @@ const INITIAL_COMPARE_ROW = { status: "idle", inputValue: "", revealedValue: "",
 export default function DetailInfo() {
   const [searchParams] = useSearchParams();
   const identifierId = searchParams.get("id");
+  // 검색 화면에서 넘겨준 검색어(원본 값), 이의제기 신청에 사용
+  const searchedQuery = useLocation().state?.query ?? "";
   const navigate = useNavigate();
 
   // 어떤 id의 결과인지 같이 저장 (주소의 id와 다르면 아직 불러오는 중)
@@ -386,7 +388,7 @@ export default function DetailInfo() {
     return <BackHeader label="검색 결과" />;
   }
 
-  const { maskedValue, riskLevel, fraudCount, suspicionCount, relatedIdentifiers, timeline } = detail.data;
+  const { type, maskedValue, riskLevel, fraudCount, suspicionCount, relatedIdentifiers, timeline } = detail.data;
   const summary = {
     status: toStatus(riskLevel),
     account: maskedValue,
@@ -499,7 +501,9 @@ export default function DetailInfo() {
         <StyledDisputeLink
           type="button"
           onClick={() =>
-            navigate("/search/dispute", { state: { ...summary, identifierId: detail.data.identifierId } })
+            navigate("/search/dispute", {
+              state: { ...summary, identifierId: detail.data.identifierId, identifierType: type, identifier: searchedQuery },
+            })
           }
         >
           내 계좌인가요? 증빙으로 이의제기하기
