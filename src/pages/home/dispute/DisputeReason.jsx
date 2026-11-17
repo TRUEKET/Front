@@ -4,6 +4,7 @@ import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import { MOCK_DISPUTE_REASONS } from "../../../mock/disputeReason.js";
+import { isSupportedReason } from "../../../api/dispute.js";
 
 // line-height:1로 Figma의 lineHeight 100%에 맞춤
 const StyledContent = styled.div`
@@ -101,6 +102,16 @@ const StyledEtcInput = styled.input`
   }
 `;
 
+// 아직 접수할 수 없는 이유(명의 도용, 기타)를 골랐을 때 선택지 아래 보이는 안내 문구
+const StyledNotice = styled.p`
+  margin: 0;
+  color: #a81e14;
+  font-family: "Pretendard", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+`;
+
 // 푸터 자리에 고정되는 다음 버튼 영역 (좌우 16px 여백, 화면 폭 390 기준)
 const StyledBottomAction = styled.div`
   position: fixed;
@@ -121,7 +132,9 @@ export default function DisputeReason() {
   const [reason, setReason] = useState(null);
   const [etcText, setEtcText] = useState("");
 
-  const canProceed = reason !== null && (reason !== "etc" || etcText.trim() !== "");
+  // 서버가 아직 정상 거래, 환불만 받아서 나머지 이유는 다음 단계로 못 넘어감
+  const isUnsupported = reason !== null && !isSupportedReason(reason);
+  const canProceed = reason !== null && !isUnsupported && (reason !== "etc" || etcText.trim() !== "");
 
   const handleNext = () => {
     navigate("/search/dispute/evidence", {
@@ -164,6 +177,7 @@ export default function DisputeReason() {
             );
           })}
         </StyledOptionList>
+        {isUnsupported && <StyledNotice>현재는 정상 거래와 환불 이의제기만 지원합니다.</StyledNotice>}
       </StyledContent>
 
       <StyledBottomAction>

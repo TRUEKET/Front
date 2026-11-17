@@ -1,8 +1,27 @@
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import AccountSummaryCard from "../../../components/common/AccountSummaryCard.jsx";
+import { getDisputeAvailability } from "../../../api/dispute.js";
+
+// 신청 불가 상태별 안내 문구 (AVAILABLE, NEW_REPORTS_ONLY는 신청 가능이라 문구 없음)
+const AVAILABILITY_MESSAGES = {
+  PROCESSING: "이미 처리 중인 이의제기가 있습니다.",
+  NO_NEW_REPORTS: "새롭게 이의제기할 신고가 없습니다.",
+};
+
+// 가능 여부 조회 실패 문구 (400은 서버 문구가 "잘못된 요청 값입니다."라 바꿔서 안내)
+const getAvailabilityErrorMessage = (error) =>
+  error.status === 400 ? "계좌 정보를 확인할 수 없습니다. 다시 조회해 주세요." : error.message;
+
+// 서버에 묻기 전에 걸러지는 경우 (원본 값이 없거나, 은행 계좌가 아님)
+const getPrecheckMessage = (state) => {
+  if (!state?.identifier) return "검색 화면에서 계좌를 다시 조회해 주세요.";
+  if (state.identifierType !== "ACCOUNT") return "현재는 은행 계좌 이의제기만 지원합니다.";
+  return "";
+};
 
 // 안내 카드 + 계좌 카드를 세로로 나열, line-height:1로 Figma의 lineHeight 100%에 맞춤
 const StyledContent = styled.div`
@@ -33,6 +52,16 @@ const StyledBottomAction = styled.div`
   max-width: 390px;
   margin: 0 auto;
   padding: 0 16px;
+`;
+
+// 이의제기를 신청할 수 없을 때 안내 카드 아래 보이는 문구 (증빙 화면의 오류 문구와 같은 모양)
+const StyledNotice = styled.p`
+  margin: 0;
+  color: #a81e14;
+  font-family: "Pretendard", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
 `;
 
 const StyledTop = styled.div`
@@ -123,6 +152,30 @@ const StyledGuideList = styled.ul`
 export default function Dispute() {
   const { state } = useLocation();
   const navigate = useNavigate();
+  const identifier = state?.identifier ?? "";
+  const precheckMessage = getPrecheckMessage(state);
+
+  // 어떤 값의 결과인지 같이 저장 (원본 값과 다르면 아직 확인 중)
+  const [availability, setAvailability] = useState({ identifier: null, canApply: false, message: "" });
+
+  useEffect(() => {
+    if (precheckMessage) return undefined;
+
+    const controller = new AbortController();
+    getDisputeAvailability(identifier, { signal: controller.signal })
+      .then(({ status, canApply }) =>
+        setAvailability({ identifier, canApply, message: canApply ? "" : (AVAILABILITY_MESSAGES[status] ?? "") }),
+      )
+      .catch((error) => {
+        if (error.name === "AbortError") return;
+        setAvailability({ identifier, canApply: false, message: getAvailabilityErrorMessage(error) });
+      });
+    return () => controller.abort();
+  }, [identifier, precheckMessage]);
+
+  const isChecking = !precheckMessage && availability.identifier !== identifier;
+  const notice = precheckMessage || (isChecking ? "" : availability.message);
+  const canStart = !precheckMessage && !isChecking && availability.canApply;
 
   return (
     <>
@@ -170,11 +223,12 @@ export default function Dispute() {
               </StyledGuideTexts>
             </StyledGuideStep>
           </StyledGuideCard>
+          {notice && <StyledNotice>{notice}</StyledNotice>}
         </StyledTop>
       </StyledContent>
 
       <StyledBottomAction>
-        <MainButton variant="accent" onClick={() => navigate("/search/dispute/reason", { state })}>
+        <MainButton variant="accent" disabled={!canStart} onClick={() => navigate("/search/dispute/reason", { state })}>
           시작하기
         </MainButton>
       </StyledBottomAction>
