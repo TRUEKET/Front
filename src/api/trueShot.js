@@ -104,13 +104,26 @@ export const isExpired = (request, now = Date.now()) =>
 const passedSeconds = (startedAt, seconds, now) =>
   Boolean(startedAt) && now > new Date(startedAt).getTime() + seconds * 1000;
 
+// 회차별 시작 시각·제한 시간·판독 통과 시각 필드
+const ROUND_TIMES = {
+  1: { startedKey: "firstStartedAt", seconds: FIRST_SHOT_SECONDS, passedKey: "firstPassedAt" },
+  2: { startedKey: "secondStartedAt", seconds: SECOND_SHOT_SECONDS, passedKey: "secondPassedAt" },
+};
+
+// 이번 회차 AI 판독을 제한 시간 안에 통과했는지 (통과 후 가리기 중에는 시간이 지나도 실패 아님)
+export const isRoundPassed = (request, round) => Boolean(request?.[ROUND_TIMES[round].passedKey]);
+
 // 판매자가 인증을 시작한 뒤 회차 제한 시간(1차 3분, 2차 1분)을 넘겼는지 → 넘긴 회차(1, 2), 아니면 null
 // 판매자 화면이 열려 있으면 실패가 저장되지만, 중간에 닫아도 구매자 쪽에서 실패로 보이게 시각으로도 판단
+// 판독을 통과한 회차는 제외 (가리기 저장 전에 시간이 지나도 시간 초과 아님)
 export function getTimeoutRound(request, now = Date.now()) {
   if (request.result !== null) return null;
-  if (!request.firstShotAt && passedSeconds(request.firstStartedAt, FIRST_SHOT_SECONDS, now)) return 1;
-  if (request.firstShotAt && !request.secondShotAt && passedSeconds(request.secondStartedAt, SECOND_SHOT_SECONDS, now)) return 2;
-  return null;
+  const round = request.firstShotAt ? 2 : 1;
+  if (round === 2 && request.secondShotAt) return null;
+
+  const { startedKey, seconds } = ROUND_TIMES[round];
+  if (isRoundPassed(request, round)) return null;
+  return passedSeconds(request[startedKey], seconds, now) ? round : null;
 }
 
 const TIMEOUT_REASON_KEYS = { 1: "firstTimeout", 2: "secondTimeout" };
@@ -216,6 +229,16 @@ export function judgeSellerShot(request, round, { forceFail = false } = {}) {
     passed: false,
     reasons: SELLER_FAIL_REASONS[round].map((reason) => ({ ...reason, text: reason.text.replace("{code}", request.code) })),
   };
+}
+
+// AI 판독 통과 시각 저장 (결과 전이고 회차 제한 시간 안에 통과했을 때만)
+// 저장해 두면 가리기 중에 제한 시간이 지나도 구매자 쪽에서 시간 초과 실패로 보이지 않음
+export function markRoundPassed(id, round, now = Date.now()) {
+  const request = getTrueShotRequest(id);
+  const { startedKey, seconds, passedKey } = ROUND_TIMES[round];
+  if (!request || request.result !== null || passedSeconds(request[startedKey], seconds, now)) return request;
+
+  return updateTrueShotRequest(id, { [passedKey]: new Date(now).toISOString() });
 }
 
 // 1차 가리기 저장: 가린 사진 1 저장 + 구매자 진행 단계 '첫 번째 촬영' 체크 + 2차 타이머 시작
