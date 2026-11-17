@@ -1,5 +1,5 @@
-import { Fragment, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Fragment, useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import Button from "../../../components/common/Button.jsx";
@@ -7,14 +7,30 @@ import AccountSummaryCard from "../../../components/common/AccountSummaryCard.js
 import phoneIcon from "../../../assets/icons/detail_phone.svg";
 import xAccountIcon from "../../../assets/icons/detail_x_account.svg";
 import otherAccountIcon from "../../../assets/icons/detail_other_account.svg";
-import { MOCK_RELATED_INFO, MOCK_TIMELINE } from "../../../mock/searchDetail.js";
+import { compareLookup, getLookupDetail, toCountText, toStatus } from "../../../api/lookup.js";
 
-// 연관 정보 타입별 아이콘
-const RELATED_INFO_ICONS = {
-  phone: phoneIcon,
-  x: xAccountIcon,
-  account: otherAccountIcon,
+// 연관 정보 타입별 아이콘, 라벨 (서버 type: PHONE, SNS, ACCOUNT)
+const RELATED_INFO_CONFIG = {
+  PHONE: { icon: phoneIcon, label: "전화번호" },
+  SNS: { icon: xAccountIcon, label: "X 계정" },
+  ACCOUNT: { icon: otherAccountIcon, label: "다른 계좌" },
 };
+
+// 타임라인 신고 종류 라벨 (서버 kind: FRAUD, SUSPICION)
+const TIMELINE_KIND_LABELS = {
+  FRAUD: "피해 신고",
+  SUSPICION: "의심 제보",
+};
+
+// "2026-11-15" → "26.11.15"
+const formatTimelineDate = (date) => date.slice(2).replaceAll("-", ".");
+
+const NOT_FOUND_MESSAGE = "조회 대상 정보를 찾을 수 없습니다.";
+const COMPARE_MISMATCH_MESSAGE = "일치하지 않습니다. 오탈자에 주의해주세요.";
+
+// 비교하기 실패 문구 (400은 서버 문구가 "잘못된 요청 값입니다."라 입력 형식을 안내)
+const getCompareErrorMessage = (error) =>
+  error.status === 400 ? "형식이 올바르지 않습니다. 다시 확인해 주세요." : error.message;
 
 // 계좌 정보 카드 + 연관 정보 카드 + 타임라인 카드를 세로로 나열
 // line-height:1을 여기서만 적용 (전역 index.css의 145%는 그대로 두고, 이 화면 텍스트만 Figma의 lineHeight 100%에 맞춤)
@@ -182,6 +198,26 @@ const StyledCompareError = styled.p`
   text-align: left;
 `;
 
+// 연관 정보, 타임라인이 비어 있을 때 카드 안에 보이는 안내 문구
+const StyledCardEmptyText = styled.p`
+  margin: 0;
+  color: #4e4a57;
+  font-family: "Pretendard", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+`;
+
+// 세부정보를 불러오지 못했을 때 화면 가운데 보이는 안내 문구 (검색 결과 화면의 안내 문구와 같은 모양)
+const StyledStatusText = styled.p`
+  margin: 0;
+  color: #191919;
+  font-family: "Pretendard", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  text-align: center;
+`;
+
 // 마스킹 안내 문구 (두 줄)
 const StyledDisclaimer = styled.p`
   margin: 0;
@@ -266,45 +302,103 @@ const StyledDisputeLink = styled.button`
   cursor: pointer;
 `;
 
-// 연관 정보 행 하나의 비교하기 상태: idle(기본) / open(입력중) / error(불일치) / revealed(공개됨)
-const INITIAL_COMPARE_ROW = { status: "idle", inputValue: "" };
+// 연관 정보 행 하나의 비교하기 상태
+// idle(기본) / open(입력중) / checking(확인 중) / error(불일치, 오류) / revealed(공개됨)
+const INITIAL_COMPARE_ROW = { status: "idle", inputValue: "", revealedValue: "", errorMessage: "" };
 
-// 검색결과에서 계좌를 선택했을 때 보여주는 세부정보 화면
+// 검색결과에서 계좌를 선택했을 때 보여주는 세부정보 화면 (주소의 id로 세부정보 조회)
 export default function DetailInfo() {
-  const { state } = useLocation();
-  const { status = "safe", account = "", reportCount = "0명", suspectCount = "0명" } = state ?? {};
+  const [searchParams] = useSearchParams();
+  const identifierId = searchParams.get("id");
   const navigate = useNavigate();
 
+  // 어떤 id의 결과인지 같이 저장 (주소의 id와 다르면 아직 불러오는 중)
+  const [detail, setDetail] = useState({ id: null, data: null, error: "" });
+
+  useEffect(() => {
+    if (!identifierId) return undefined;
+
+    const controller = new AbortController();
+    getLookupDetail(identifierId, { signal: controller.signal })
+      .then((data) => setDetail({ id: identifierId, data, error: "" }))
+      .catch((error) => {
+        if (error.name === "AbortError") return;
+        // 400(잘못된 id 형식)도 사용자에게는 찾을 수 없음으로 안내
+        const message = error.status === 400 ? NOT_FOUND_MESSAGE : error.message;
+        setDetail({ id: identifierId, data: null, error: message });
+      });
+    return () => controller.abort();
+  }, [identifierId]);
+
+  // 연관 정보 행별 비교하기 상태 (연관 식별자 id로 구분)
   const [compareState, setCompareState] = useState({});
-  const getRowState = (label) => compareState[label] ?? INITIAL_COMPARE_ROW;
+  const getRowState = (rowId) => compareState[rowId] ?? INITIAL_COMPARE_ROW;
 
-  const openCompare = (label) => {
-    setCompareState((prev) => ({ ...prev, [label]: { status: "open", inputValue: "" } }));
-  };
-
-  const updateCompareInput = (label, inputValue) => {
-    setCompareState((prev) => ({ ...prev, [label]: { ...getRowState(label), inputValue } }));
-  };
-
-  const submitCompare = (label, realValue) => {
-    const { inputValue } = getRowState(label);
-    const matches = inputValue.trim().toLowerCase() === realValue.trim().toLowerCase();
+  const updateRow = (rowId, changes) => {
     setCompareState((prev) => ({
       ...prev,
-      [label]: { ...prev[label], status: matches ? "revealed" : "error" },
+      [rowId]: { ...(prev[rowId] ?? INITIAL_COMPARE_ROW), ...changes },
     }));
+  };
+
+  const openCompare = (rowId) => updateRow(rowId, { status: "open", inputValue: "" });
+
+  const submitCompare = async (rowId) => {
+    const row = getRowState(rowId);
+    if (row.status === "checking") return;
+
+    const value = row.inputValue.trim();
+    if (!value) {
+      updateRow(rowId, { status: "error", errorMessage: "비교할 값을 입력해 주세요." });
+      return;
+    }
+
+    updateRow(rowId, { status: "checking" });
+    try {
+      const { matched } = await compareLookup(rowId, value);
+      // 일치하면 사용자가 입력한 값을 그대로 보여줌 (서버 value는 SHINHAN:111... 같은 정규화 값이라 쓰지 않음)
+      updateRow(
+        rowId,
+        matched
+          ? { status: "revealed", revealedValue: value }
+          : { status: "error", errorMessage: COMPARE_MISMATCH_MESSAGE },
+      );
+    } catch (error) {
+      updateRow(rowId, { status: "error", errorMessage: getCompareErrorMessage(error) });
+    }
+  };
+
+  // id가 없거나 불러오기 실패
+  const errorMessage = !identifierId ? NOT_FOUND_MESSAGE : detail.id === identifierId && detail.error;
+  if (errorMessage) {
+    return (
+      <>
+        <BackHeader label="검색 결과" />
+        <StyledContent>
+          <StyledStatusText>{errorMessage}</StyledStatusText>
+        </StyledContent>
+      </>
+    );
+  }
+
+  // 불러오는 중
+  if (detail.id !== identifierId || !detail.data) {
+    return <BackHeader label="검색 결과" />;
+  }
+
+  const { maskedValue, riskLevel, fraudCount, suspicionCount, relatedIdentifiers, timeline } = detail.data;
+  const summary = {
+    status: toStatus(riskLevel),
+    account: maskedValue,
+    reportCount: toCountText(fraudCount),
+    suspectCount: toCountText(suspicionCount),
   };
 
   return (
     <>
       <BackHeader label="검색 결과" />
       <StyledContent>
-        <AccountSummaryCard
-          status={status}
-          account={account}
-          reportCount={reportCount}
-          suspectCount={suspectCount}
-        />
+        <AccountSummaryCard {...summary} />
 
         <StyledCard>
           <StyledCardHeading>
@@ -312,57 +406,65 @@ export default function DetailInfo() {
             <StyledCardSubtitle>이 계좌가 나온 신고 및 제보에 함께 위치한 정보</StyledCardSubtitle>
           </StyledCardHeading>
           <StyledCardDivider />
-          {MOCK_RELATED_INFO.map((info, index) => {
-            const row = getRowState(info.label);
+          {relatedIdentifiers.length === 0 && (
+            <>
+              <StyledCardEmptyText>함께 신고된 정보가 없습니다.</StyledCardEmptyText>
+              <StyledCardDivider />
+            </>
+          )}
+          {relatedIdentifiers.map((info, index) => {
+            const rowId = info.identifierId;
+            const row = getRowState(rowId);
+            const config = RELATED_INFO_CONFIG[info.type] ?? RELATED_INFO_CONFIG.ACCOUNT;
+            const isInputOpen = row.status === "open" || row.status === "checking" || row.status === "error";
             return (
-              <Fragment key={info.label}>
+              <Fragment key={rowId}>
                 <StyledRelatedRow>
                   <StyledRelatedInfo>
                     <StyledRelatedIcon>
-                      <img src={RELATED_INFO_ICONS[info.type]} alt="" />
+                      <img src={config.icon} alt="" />
                     </StyledRelatedIcon>
                     <StyledRelatedTexts>
-                      <StyledRelatedLabel>{info.label}</StyledRelatedLabel>
+                      <StyledRelatedLabel>{config.label}</StyledRelatedLabel>
                       <StyledRelatedValue>
-                        {row.status === "revealed" ? info.realValue : info.value}
+                        {row.status === "revealed" ? row.revealedValue : info.maskedValue}
                       </StyledRelatedValue>
                     </StyledRelatedTexts>
                   </StyledRelatedInfo>
                   {row.status === "idle" && (
-                    <Button variant="disabled" onClick={() => openCompare(info.label)}>
+                    <Button variant="disabled" onClick={() => openCompare(rowId)}>
                       비교하기
                     </Button>
                   )}
                 </StyledRelatedRow>
-                {(row.status === "open" || row.status === "error") && (
+                {isInputOpen && (
                   <StyledCompareRow>
                     <StyledCompareInputBox>
                       <StyledCompareInput
                         type="text"
                         placeholder="내용을 입력하세요..."
                         value={row.inputValue}
-                        onChange={(e) => updateCompareInput(info.label, e.target.value)}
+                        onChange={(e) => updateRow(rowId, { inputValue: e.target.value })}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
-                            submitCompare(info.label, info.realValue);
+                            submitCompare(rowId);
                           }
                         }}
                       />
                     </StyledCompareInputBox>
                     <StyledConfirmButton
                       type="button"
-                      onClick={() => submitCompare(info.label, info.realValue)}
+                      disabled={row.status === "checking"}
+                      onClick={() => submitCompare(rowId)}
                     >
                       확인
                     </StyledConfirmButton>
                   </StyledCompareRow>
                 )}
-                {row.status === "error" && (
-                  <StyledCompareError>일치하지 않습니다. 오탈자에 주의해주세요.</StyledCompareError>
-                )}
+                {row.status === "error" && <StyledCompareError>{row.errorMessage}</StyledCompareError>}
                 {/* 행 사이는 점선, 마지막(안내문구 앞)은 다른 카드와 같은 실선 */}
-                <StyledCardDivider $dashed={index < MOCK_RELATED_INFO.length - 1} />
+                <StyledCardDivider $dashed={index < relatedIdentifiers.length - 1} />
               </Fragment>
             );
           })}
@@ -376,23 +478,29 @@ export default function DetailInfo() {
         <StyledCard>
           <StyledCardTitle>신고·제보 타임라인</StyledCardTitle>
           <StyledCardDivider />
-          <StyledTimelineList>
-            <StyledTimelineLine />
-            {MOCK_TIMELINE.map((item, index) => (
-              <StyledTimelineRow key={`${item.date}-${index}`}>
-                <StyledTimelineMarker>
-                  <StyledTimelineDot />
-                </StyledTimelineMarker>
-                <StyledTimelineDate>{item.date}</StyledTimelineDate>
-                <StyledTimelineType>{item.type}</StyledTimelineType>
-              </StyledTimelineRow>
-            ))}
-          </StyledTimelineList>
+          {timeline.length === 0 ? (
+            <StyledCardEmptyText>최근 1년간 신고·제보 기록이 없습니다.</StyledCardEmptyText>
+          ) : (
+            <StyledTimelineList>
+              <StyledTimelineLine />
+              {timeline.map((item, index) => (
+                <StyledTimelineRow key={`${item.date}-${index}`}>
+                  <StyledTimelineMarker>
+                    <StyledTimelineDot />
+                  </StyledTimelineMarker>
+                  <StyledTimelineDate>{formatTimelineDate(item.date)}</StyledTimelineDate>
+                  <StyledTimelineType>{TIMELINE_KIND_LABELS[item.kind]}</StyledTimelineType>
+                </StyledTimelineRow>
+              ))}
+            </StyledTimelineList>
+          )}
         </StyledCard>
 
         <StyledDisputeLink
           type="button"
-          onClick={() => navigate("/search/dispute", { state: { status, account, reportCount, suspectCount } })}
+          onClick={() =>
+            navigate("/search/dispute", { state: { ...summary, identifierId: detail.data.identifierId } })
+          }
         >
           내 계좌인가요? 증빙으로 이의제기하기
         </StyledDisputeLink>
