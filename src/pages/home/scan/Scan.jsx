@@ -140,8 +140,19 @@ export default function Scan() {
   const [images, setImages] = useState([]);
   const [memo, setMemo] = useState("");
 
-  const handleScan = () => {
-    navigate("/scan/loading", { state: { imageCount: images.length, memo: memo.trim() } });
+  const [preparing, setPreparing] = useState(false);
+
+  // 미리보기 주소(blob:)에서 원본 파일을 다시 꺼내 로딩 화면으로 넘김
+  // (이 화면을 떠나면 CaptureTiles가 미리보기 주소를 해제해서, 떠나기 전에 파일로 바꿔 둠)
+  const handleScan = async () => {
+    setPreparing(true);
+    const captures = await Promise.all(
+      images.map(async ({ url }, index) => {
+        const blob = await fetch(url).then((response) => response.blob());
+        return new File([blob], `capture-${index + 1}`, { type: blob.type });
+      }),
+    );
+    navigate("/scan/loading", { state: { captures, memo: memo.trim() } });
   };
 
   return (
@@ -190,7 +201,7 @@ export default function Scan() {
       </StyledContent>
 
       <StyledBottomAction>
-        <MainButton variant="accent" disabled={images.length === 0} onClick={handleScan}>
+        <MainButton variant="accent" disabled={images.length === 0 || preparing} onClick={handleScan}>
           판독하기
         </MainButton>
       </StyledBottomAction>
