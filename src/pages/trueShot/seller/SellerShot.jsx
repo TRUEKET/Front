@@ -76,15 +76,20 @@ const StyledMarkLine = styled.span`
   background: repeating-linear-gradient(to right, ${({ $color }) => $color} 0 1.97px, transparent 1.97px 3.95px);
 `;
 
+// 라벨 칸 사이 = 점선 길이(150px), 칸 폭 = 동그라미 폭(25px)
 const StyledStepLabels = styled.div`
   display: flex;
-  gap: 120px;
+  gap: 150px;
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
 `;
 
+// 동그라미 폭 칸 가운데에 글자 (글자가 칸보다 넓어도 양옆으로 같이 넘쳐 가운데가 동그라미와 맞음)
 const StyledStepLabel = styled.span`
+  display: flex;
+  justify-content: center;
+  width: 25px;
   color: ${({ $active }) => ($active ? "#5434d6" : "#4e4a57")};
   ${({ $glow }) =>
     $glow &&
