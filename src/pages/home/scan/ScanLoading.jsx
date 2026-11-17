@@ -1,11 +1,31 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import MainButton from "../../../components/common/MainButton.jsx";
-import { analyzeCaptures } from "../../../api/analyze.js";
+import { analyzeCaptures, countAccounts, deleteAnalysis } from "../../../api/analyze.js";
+import { getDefaultAccountIndex, verifyReportEvidence } from "../../../api/report.js";
 
-// 판독 요청이 없는 흐름(홈 신고하기)에서 로딩 화면을 보여줄 시간
-const LOADING_MS = 2500;
+// 판독은 됐지만 읽기 실패한 경우를 다른 오류와 같이 처리하려고 던지는 오류
+class UnreadableError extends Error {}
+
+// 홈 신고하기: 송금 사진의 받는 계좌가 판독 계좌와 같은지 확인
+// 계좌 불일치(422), 판독에 계좌가 없음(400)은 오류가 아니라 결과 화면의 불일치 항목으로 보여줌
+const checkEvidence = async (result, file, signal) => {
+  try {
+    const { evidenceToken, message } = await verifyReportEvidence(
+      {
+        analysisId: result.analyzeId,
+        accountIndex: getDefaultAccountIndex(countAccounts(result.identifiers)),
+        file,
+      },
+      { signal },
+    );
+    return { verified: true, evidenceToken, message };
+  } catch (error) {
+    if (error.status === 422 || error.status === 400) return { verified: false, message: error.message };
+    throw error;
+  }
+};
 
 const StyledLoading = styled.div`
   display: flex;
@@ -55,37 +75,47 @@ const StyledBottomAction = styled.div`
 `;
 
 // 판독하기를 누른 뒤 AI 판독이 끝날 때까지 보여주는 화면 (nextPath: 판독이 끝나면 이동할 결과 화면)
-// - 판독 화면에서 온 경우(state.captures 있음): POST /analyze 응답을 받으면 결과 화면으로 이동
-// - 홈 신고하기에서 온 경우: 아직 연동 전이라 정해진 시간 뒤 이동
+// - 판독: POST /analyze 응답을 받으면 결과 화면으로 이동
+// - 홈 신고하기(state.evidence 있음): 판독 후 송금 사진 검증(POST /reports/evidence)까지 하고 이동
 export default function ScanLoading({ nextPath = "/scan/result" }) {
   const { state } = useLocation();
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState("");
+  const captures = state?.captures;
 
   useEffect(() => {
-    if (!state?.captures) {
-      const timer = setTimeout(() => navigate(nextPath, { state, replace: true }), LOADING_MS);
-      return () => clearTimeout(timer);
-    }
+    if (!captures) return undefined;
 
     // 뒤로 가기 등으로 화면을 떠나면 요청 취소
     const controller = new AbortController();
-    analyzeCaptures({ captures: state.captures, additionalInfo: state.memo }, { signal: controller.signal })
-      .then((result) => {
-        // 대화를 못 읽으면 200 + readable false로 옴 (결과 화면 없이 다시 캡처 안내)
-        if (!result.readable) {
-          setErrorMessage(result.message);
-          return;
-        }
-        // 원본 사진 보기용으로 캡처 파일도 같이 넘김
-        navigate(nextPath, { state: { result, captures: state.captures }, replace: true });
-      })
-      .catch((error) => {
-        if (error.name === "AbortError") return;
-        setErrorMessage(error.message);
+    const { signal } = controller;
+    // 판독은 됐는데 송금 검증에서 실패하면 서버의 판독 결과를 바로 지우려고 기억해 둠
+    let createdAnalyzeId = null;
+
+    const run = async () => {
+      const result = await analyzeCaptures({ captures, additionalInfo: state.memo }, { signal });
+      createdAnalyzeId = result.analyzeId;
+      // 대화를 못 읽으면 200 + readable false로 옴 (결과 화면 없이 다시 캡처 안내)
+      if (!result.readable) throw new UnreadableError(result.message);
+
+      const evidence = state.evidence ? await checkEvidence(result, state.evidence, signal) : null;
+      // 원본 사진 보기용으로 캡처 파일도 같이 넘김
+      navigate(nextPath, {
+        state: { result, captures, evidence, tradeType: state.tradeType },
+        replace: true,
       });
+    };
+
+    run().catch((error) => {
+      if (createdAnalyzeId) deleteAnalysis(createdAnalyzeId).catch(() => {});
+      if (error.name === "AbortError") return;
+      setErrorMessage(error.message);
+    });
     return () => controller.abort();
-  }, [navigate, nextPath, state]);
+  }, [navigate, nextPath, state, captures]);
+
+  // 새로고침, 주소 직접 입력처럼 보낼 캡처 없이 들어오면 홈으로 보냄
+  if (!captures) return <Navigate to="/" replace />;
 
   // 판독 실패, 읽기 실패: 서버 문구와 함께 판독 화면으로 돌아가는 버튼을 보여줌
   if (errorMessage) {

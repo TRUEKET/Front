@@ -1,12 +1,17 @@
-import { Fragment, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import ScanBox from "../../../components/common/ScanBox.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import Button from "../../../components/common/Button.jsx";
-import ReportHistorySheet from "../../../components/scan/ReportHistorySheet.jsx";
-import { MOCK_REPORT_RESULTS } from "../../../mock/report.js";
+import {
+  deleteAnalysis,
+  findIdentifier,
+  getReportTitle,
+  sendAnalysisFeedback,
+  toStageStatus,
+} from "../../../api/analyze.js";
 import matchIcon from "../../../assets/icons/dispute_complete_check.svg";
 import checkPassIcon from "../../../assets/icons/report_check_small.svg";
 import checkFailIcon from "../../../assets/icons/report_x_small.svg";
@@ -28,8 +33,85 @@ const STATUS_CONFIG = {
   },
 };
 
-// 연동 전에는 ?status=match|mismatch 로 볼 결과를 고름 (없으면 사실 확인 완료)
-const DEFAULT_STATUS = "match";
+// 서버 거래 유형 → 신고하기 화면의 거래 종류 이름
+const TRADE_TYPE_LABELS = {
+  TRANSFER: "양도",
+  PROXY: "대리티켓팅",
+  CANCEL: "취소표 티켓팅",
+  AOM: "아이디 옮기기",
+  OTHER: "기타",
+};
+
+// 판독 응답 + 송금 사진 검증 결과 → 확인 결과 항목
+// 모든 항목을 통과해야 사실 확인 완료(match), 하나라도 못 하면 자료 불일치(mismatch)
+const toReportResult = ({ result, evidence, tradeType }) => {
+  const { assessment, identifiers } = result;
+  const detectedType = TRADE_TYPE_LABELS[result.detectedType] ?? TRADE_TYPE_LABELS.OTHER;
+  const account = findIdentifier(identifiers, "ACCOUNT");
+  const phone = findIdentifier(identifiers, "PHONE");
+  const sns = findIdentifier(identifiers, "SNS");
+  const sellerValues = [phone, sns].filter(Boolean).join(" · ") || account;
+
+  const checks = [
+    // 거래 유형은 신고 가능 여부에 영향이 없어 AI가 판단한 유형을 보여주기만 함
+    {
+      id: "tradeType",
+      passed: true,
+      title: "티켓 거래 유형 확인",
+      desc: "티켓 거래인지와 해당 유형인지를 파악",
+      values: [`티켓 거래 O · ${detectedType}`],
+    },
+    evidence.verified
+      ? {
+          id: "account",
+          passed: true,
+          title: "계좌 일치",
+          desc: "송금 내역 속 계좌와 주요 대화 속 계좌 일치",
+          values: [account],
+        }
+      : {
+          id: "account",
+          passed: false,
+          title: "계좌 불일치",
+          desc: "송금 내역 속 계좌와 주요 대화 속 계좌 불일치",
+          values: account ? [`주요 대화: ${account}`] : [],
+          guide: evidence.message,
+        },
+    identifiers.length > 0
+      ? { id: "seller", passed: true, title: "판매자 정보 수집 완료", values: [sellerValues] }
+      : {
+          id: "seller",
+          passed: false,
+          title: "판매자 정보 없음",
+          values: [],
+          guide: "계좌, 전화번호가 보이는 대화를 넣어주세요.",
+        },
+  ];
+
+  // 대화에서 신고할 근거를 찾지 못하면 서버가 신고를 받지 않음
+  if (!assessment.showReportButton) {
+    checks.push({
+      id: "reportable",
+      passed: false,
+      title: "사기 정황 확인 불가",
+      desc: "대화에서 신고할 수 있는 사기 정황을 찾지 못함",
+      values: [],
+      guide: "판매자와 나눈 대화가 잘 보이게 넣어주세요.",
+    });
+  }
+
+  return {
+    status: checks.every(({ passed }) => passed) ? "match" : "mismatch",
+    tradeType: tradeType ?? detectedType,
+    reportStatus: toStageStatus(assessment.reportStage),
+    reportTitle: getReportTitle(assessment),
+    account,
+    phone,
+    sns,
+    evidenceToken: evidence.evidenceToken,
+    checks,
+  };
+};
 
 // 화면 높이(#root와 같은 기준)를 꽉 채워서 아래 버튼 영역을 화면 맨 아래로 보낼 수 있게 함
 // main에 푸터 자리용 아래 여백 100px이 있어서, 푸터가 없는 이 화면은 -100px로 그 여백을 덮어 스크롤이 생기지 않게 함
@@ -282,23 +364,69 @@ const StyledThanks = styled.p`
 `;
 
 // 신고하기 흐름에서 대화와 금전 피해 자료가 맞는지 판독한 결과 화면
+// 로딩 화면에서 판독 응답(state.result)과 송금 사진 검증 결과(state.evidence)를 받아서 보여줌
 export default function ReportResult() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [feedback, setFeedback] = useState(null);
+  const { state } = useLocation();
+  const analyzeId = state?.result?.analyzeId;
 
-  const result = MOCK_REPORT_RESULTS[searchParams.get("status")] ?? MOCK_REPORT_RESULTS[DEFAULT_STATUS];
+  const [feedback, setFeedback] = useState(null);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [isFeedbackSending, setIsFeedbackSending] = useState(false);
+
+  const result = useMemo(() => (state?.result && state?.evidence ? toReportResult(state) : null), [state]);
+
+  // 화면을 떠날 때 서버의 판독 결과 삭제 (신고하러 가는 경우는 신고에 필요해서 남겨 둠)
+  // 개발 모드(StrictMode)는 마운트 직후 정리를 한 번 더 실행하므로, 실제로 떠날 때만 실행되도록 한 박자 미룸
+  const keepAnalysisRef = useRef(false);
+  const leaveTimerRef = useRef(null);
+  useEffect(() => {
+    clearTimeout(leaveTimerRef.current);
+    return () => {
+      leaveTimerRef.current = setTimeout(() => {
+        if (analyzeId && !keepAnalysisRef.current) deleteAnalysis(analyzeId).catch(() => {});
+      }, 0);
+    };
+  }, [analyzeId]);
+
+  // 새로고침, 주소 직접 입력처럼 판독 응답 없이 들어오면 신고하기 화면으로 보냄
+  if (!result) return <Navigate to="/report" replace />;
+
   const config = STATUS_CONFIG[result.status];
   const isMatch = result.status === "match";
 
-  // 같은 피드백 버튼을 다시 누르면 선택 해제 (TODO: API 연동 시 선택한 피드백 전송)
-  const toggleFeedback = (value) => setFeedback((prev) => (prev === value ? null : value));
+  // 피드백은 판독당 한 번만 보낼 수 있어서, 보내고 나면 두 버튼 모두 막음
+  const sendFeedback = async (value) => {
+    if (feedback || isFeedbackSending) return;
+    setIsFeedbackSending(true);
+    try {
+      const { message } = await sendAnalysisFeedback(analyzeId, value === "up" ? "HELPFUL" : "INCORRECT");
+      setFeedback(value);
+      setFeedbackMessage(message ?? "소중한 의견 감사합니다");
+    } catch (error) {
+      // 409: 이미 이 판독에 피드백을 보냄
+      if (error.status === 409) setFeedback(value);
+      setFeedbackMessage(error.status === 409 ? "이미 의견을 보내주셨어요" : error.message);
+    } finally {
+      setIsFeedbackSending(false);
+    }
+  };
+  const isFeedbackLocked = Boolean(feedback) || isFeedbackSending;
 
-  // 사실 확인 완료면 확인된 판매자 정보를 들고 신고 화면으로, 불일치면 자료를 다시 넣으러 돌아감
+  // 사실 확인 완료면 확인된 판매자 정보와 송금 증빙 토큰을 들고 신고 화면으로, 불일치면 자료를 다시 넣으러 돌아감
   const handleAction = () => {
     if (isMatch) {
-      navigate("/report/form", { state: { tradeType: result.tradeType, ...result.reportInfo } });
+      keepAnalysisRef.current = true;
+      navigate("/report/form", {
+        state: {
+          analyzeId,
+          evidenceToken: result.evidenceToken,
+          tradeType: result.tradeType,
+          account: result.account,
+          phone: result.phone,
+          sns: result.sns,
+        },
+      });
       return;
     }
     navigate(-1);
@@ -317,14 +445,9 @@ export default function ReportResult() {
           <StyledHeadlineSub>{config.sub}</StyledHeadlineSub>
         </StyledHeadlineGroup>
 
+        {/* TODO: 판독 응답에 식별자별 신고 인원이 생기면 이력 횟수와 신고 이력 시트(ReportHistorySheet) 다시 연결 */}
         {isMatch && (
-          <ScanBox
-            status="danger"
-            title={`피해 신고·의심 제보 이력 ${result.reportCount}회`}
-            account={result.account}
-            phone={result.phone}
-            onClick={() => setIsHistoryOpen(true)}
-          />
+          <ScanBox status={result.reportStatus} title={result.reportTitle} account={result.account} phone={result.phone} />
         )}
 
         <StyledCard>
@@ -368,7 +491,8 @@ export default function ReportResult() {
                 type="button"
                 $selected={feedback === "up"}
                 aria-pressed={feedback === "up"}
-                onClick={() => toggleFeedback("up")}
+                disabled={isFeedbackLocked}
+                onClick={() => sendFeedback("up")}
               >
                 <img src={feedback === "up" ? thumbsUpSelectedIcon : thumbsUpIcon} alt="" />
                 도움이 되었어요
@@ -377,7 +501,8 @@ export default function ReportResult() {
                 type="button"
                 $selected={feedback === "down"}
                 aria-pressed={feedback === "down"}
-                onClick={() => toggleFeedback("down")}
+                disabled={isFeedbackLocked}
+                onClick={() => sendFeedback("down")}
               >
                 {feedback === "down" ? (
                   <StyledWhiteIcon src={thumbsDownIcon} alt="" />
@@ -387,14 +512,10 @@ export default function ReportResult() {
                 결과가 이상해요
               </StyledFeedbackButton>
             </StyledFeedbackRow>
-            {feedback && <StyledThanks>소중한 의견 감사합니다</StyledThanks>}
+            {feedbackMessage && <StyledThanks>{feedbackMessage}</StyledThanks>}
           </StyledFeedback>
         </StyledBottom>
       </StyledContent>
-
-      {isHistoryOpen && (
-        <ReportHistorySheet history={result.reportHistory} onClose={() => setIsHistoryOpen(false)} />
-      )}
     </StyledPage>
   );
 }
