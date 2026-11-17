@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import MainButton from "../../components/common/MainButton.jsx";
+import useAuthRedirect from "../../hooks/useAuthRedirect.js";
 import FormField from "../../components/auth/FormField.jsx";
 import PhoneVerify from "../../components/auth/PhoneVerify.jsx";
 import AgreeCheckbox from "../../components/auth/AgreeCheckbox.jsx";
@@ -10,7 +10,8 @@ import { EMAIL_ERROR, PASSWORD_ERROR, isValidEmail, isValidPassword, signup } fr
 
 // 회원가입 폼: 이메일·비밀번호 형식 + 전화번호 인증 + 동의 2개가 모두 되면 버튼 활성
 export default function SignupForm() {
-  const navigate = useNavigate();
+  // 성공하면 원래 들어오려던 화면(없으면 홈)으로
+  const redirectAfterAuth = useAuthRedirect();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [touched, setTouched] = useState({ email: false, password: false });
@@ -38,7 +39,7 @@ export default function SignupForm() {
     if (!canSubmit) return;
 
     await signup({ email, password, phone });
-    navigate("/", { replace: true });
+    redirectAfterAuth();
   };
 
   return (

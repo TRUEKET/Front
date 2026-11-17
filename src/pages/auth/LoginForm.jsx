@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import MainButton from "../../components/common/MainButton.jsx";
+import useAuthRedirect from "../../hooks/useAuthRedirect.js";
 import FormField from "../../components/auth/FormField.jsx";
 import { StyledBottomAction, StyledFields } from "../../components/auth/authStyles.js";
 import { EMAIL_ERROR, isValidEmail, login } from "../../api/auth.js";
 
 // 로그인 폼: 이메일·비밀번호를 모두 입력하면 버튼 활성, 실패하면 비밀번호 아래 안내
 export default function LoginForm() {
-  const navigate = useNavigate();
+  // 성공하면 원래 들어오려던 화면(없으면 홈)으로
+  const redirectAfterAuth = useAuthRedirect();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
@@ -32,7 +33,7 @@ export default function LoginForm() {
 
     try {
       await login({ email, password });
-      navigate("/", { replace: true });
+      redirectAfterAuth();
     } catch (error) {
       setLoginError(error.message);
     }
