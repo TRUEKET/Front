@@ -18,7 +18,7 @@ const ROUND_CONFIG = {
       "갤러리 사진은 업로드 불가합니다. (실시간 검증용)",
       "개인정보는 요청자에게 전송하기 전, 1차 AI로 가리고 2차로 직접 수정합니다.",
     ],
-    button: "첫번째 사진 촬영하기",
+    button: "첫 번째 사진 촬영하기",
   },
   2: {
     guideLabel: "미션!",
@@ -27,11 +27,11 @@ const ROUND_CONFIG = {
       "갤러리 사진은 업로드 불가합니다. (실시간 검증용)",
       "개인정보는 구매자에게 전송하기 전 자동으로 숨김처리됩니다.",
     ],
-    button: "두번째 사진 촬영하기",
+    button: "두 번째 사진 촬영하기",
   },
 };
 
-// 첫번째 · 두번째 지시 단계 표시
+// 첫 번째 · 두 번째 지시 단계 표시
 const StyledSteps = styled.div`
   display: flex;
   flex-direction: column;
@@ -269,18 +269,18 @@ export default function SellerShot({ round, code, mission, remainSeconds, onShot
           </StyledMarks>
           <StyledStepLabels>
             <StyledStepLabel $active $glow={!isSecond}>
-              첫번째 지시
+              첫 번째 지시
             </StyledStepLabel>
-            <StyledStepLabel $active={isSecond}>두번째 지시</StyledStepLabel>
+            <StyledStepLabel $active={isSecond}>두 번째 지시</StyledStepLabel>
           </StyledStepLabels>
         </StyledSteps>
 
         <StyledMission>
           <StyledMissionTitle>{isSecond ? mission : config.title}</StyledMissionTitle>
           <StyledSmallText>
-            첫번째 지시 이행 시 두번째 지시가 제시됩니다.
+            첫 번째 지시 이행 시 두 번째 지시가 제시됩니다.
             <br />
-            두번째 지시는 1분 타임어택이 존재합니다.
+            두 번째 지시는 1분 타임어택이 존재합니다.
           </StyledSmallText>
         </StyledMission>
 

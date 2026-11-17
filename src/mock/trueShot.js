@@ -59,20 +59,20 @@ export const SESSION_FAIL_REASONS = {
   secondJudge: {
     seller: SELLER_FAIL_REASONS[2],
     buyer: [
-      { passed: true, text: "첫번째 사진 인증 성공" },
+      { passed: true, text: "첫 번째 사진 인증 성공" },
       { passed: false, text: "두 번째 사진이 지시를 따르지 않음" },
     ],
   },
   // 1차 3분 초과
   firstTimeout: {
     seller: [{ passed: false, text: "3분 타임어택에 실패했어요" }],
-    buyer: [{ passed: false, text: "첫번째 사진이 시간 내에 전송되지 않음" }],
+    buyer: [{ passed: false, text: "첫 번째 사진이 시간 내에 전송되지 않음" }],
   },
   // 2차 1분 초과
   secondTimeout: {
     seller: [{ passed: false, text: "1분 타임어택에 실패했어요" }],
     buyer: [
-      { passed: true, text: "첫번째 사진 인증 성공" },
+      { passed: true, text: "첫 번째 사진 인증 성공" },
       { passed: false, text: "두 번째 사진이 시간 내에 전송되지 않음" },
     ],
   },
@@ -91,7 +91,7 @@ const minutesLater = (date, minutes) => new Date(date.getTime() + minutes * 60 *
 
 // localStorage가 비어 있을 때 넣는 처음 요청 3건 (피그마 목록)
 // 촬영 대기 건은 고정 날짜면 바로 만료돼 실패로 보이므로, 처음 연 시각 기준으로 방금 요청한 것으로 만듦
-// firstShotAt·secondShotAt: 판매자의 첫번째·두번째 촬영 완료 시각, result: success 성공 / failed 실패 / null 결과 전
+// firstShotAt·secondShotAt: 판매자의 첫 번째·두 번째 촬영 완료 시각, result: success 성공 / failed 실패 / null 결과 전
 export function createMockRequests(now = new Date()) {
   const successAt = new Date("2026-10-09T14:26:00+09:00");
   const failedAt = new Date("2026-10-01T14:26:00+09:00");
@@ -130,7 +130,7 @@ export function createMockRequests(now = new Date()) {
       result: "failed",
       // 판정된 실패 이유 (passed: true 초록 체크 / false 빨간 X)
       failReasons: [
-        { passed: true, text: "첫번째 사진 인증 성공" },
+        { passed: true, text: "첫 번째 사진 인증 성공" },
         { passed: false, text: "두 번째 사진이 시간 내에 전송되지 않음" },
       ],
     },

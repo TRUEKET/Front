@@ -168,8 +168,8 @@ export function getFailReasons(request, now = Date.now()) {
   if (timeoutReasons) return timeoutReasons.buyer;
 
   return [
-    ...(request.firstShotAt ? [{ passed: true, text: "첫번째 사진 인증 성공" }] : []),
-    ...(request.secondShotAt ? [{ passed: true, text: "두번째 사진 인증 성공" }] : []),
+    ...(request.firstShotAt ? [{ passed: true, text: "첫 번째 사진 인증 성공" }] : []),
+    ...(request.secondShotAt ? [{ passed: true, text: "두 번째 사진 인증 성공" }] : []),
     { passed: false, text: "시간 만료" },
   ];
 }
@@ -178,8 +178,8 @@ export function getFailReasons(request, now = Date.now()) {
 export function getRequestProgress(request, now = Date.now()) {
   return [
     { label: "링크 제작 완료", done: true },
-    { label: "판매자의 첫번째 촬영", done: Boolean(request.firstShotAt) },
-    { label: "판매자의 두번째 촬영", done: Boolean(request.secondShotAt) },
+    { label: "판매자의 첫 번째 촬영", done: Boolean(request.firstShotAt) },
+    { label: "판매자의 두 번째 촬영", done: Boolean(request.secondShotAt) },
     { label: "인증 완료", done: ["success", "failed"].includes(getRequestStatus(request, now)) },
   ];
 }
@@ -218,7 +218,7 @@ export function judgeSellerShot(request, round, { forceFail = false } = {}) {
   };
 }
 
-// 1차 가리기 저장: 가린 사진 1 저장 + 구매자 진행 단계 '첫번째 촬영' 체크 + 2차 타이머 시작
+// 1차 가리기 저장: 가린 사진 1 저장 + 구매자 진행 단계 '첫 번째 촬영' 체크 + 2차 타이머 시작
 export function saveFirstShot(id, photo) {
   const now = new Date().toISOString();
   return updateTrueShotRequest(id, { firstShotAt: now, secondStartedAt: now, photos: [photo] });
@@ -237,7 +237,7 @@ export function failSellerSession(id, reasons) {
 export const getSellerFailReasons = (request, now = Date.now()) =>
   request.sellerFailReasons ?? getTimeoutReasons(request, now)?.seller ?? getFailReasons(request, now);
 
-// 2차 가리기 후 요청자에게 전송: 가린 사진 2 저장 + '두번째 촬영'·'인증 완료' 체크 → 구매자 결과 '인증 성공'
+// 2차 가리기 후 요청자에게 전송: 가린 사진 2 저장 + '두 번째 촬영'·'인증 완료' 체크 → 구매자 결과 '인증 성공'
 export function completeSellerSession(id, photo) {
   const request = getTrueShotRequest(id);
   return updateTrueShotRequest(id, {
