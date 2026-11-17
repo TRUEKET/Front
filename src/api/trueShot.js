@@ -171,11 +171,18 @@ export function getSuccessReasons(request) {
   };
 }
 
+// localStorage에 예전 표기('첫번째', '두번째')로 저장된 이유를 새 표기로 바꿔서 보여줌 (저장값은 그대로)
+const fixOrdinalSpacing = (reasons) =>
+  reasons.map((reason) => ({
+    ...reason,
+    text: reason.text.replace(/첫번째/g, "첫 번째").replace(/두번째/g, "두 번째"),
+  }));
+
 // 실패 이유 ({ passed, text } 목록)
-// 판정된 이유가 저장돼 있으면 그대로, 판매자 화면이 닫혀 저장되지 않은 회차 시간 초과는 시각으로 판단
+// 판정된 이유가 저장돼 있으면 그대로(예전 표기는 새 표기로), 판매자 화면이 닫혀 저장되지 않은 회차 시간 초과는 시각으로 판단
 // 둘 다 없는 예전 데이터는 마친 촬영은 체크 + 마지막에 "시간 만료"
 export function getFailReasons(request, now = Date.now()) {
-  if (request.failReasons) return request.failReasons;
+  if (request.failReasons) return fixOrdinalSpacing(request.failReasons);
 
   const timeoutReasons = getTimeoutReasons(request, now);
   if (timeoutReasons) return timeoutReasons.buyer;
@@ -258,7 +265,9 @@ export function failSellerSession(id, reasons) {
 
 // 판매자 결과 화면의 실패 이유 (저장된 판매자용 이유 → 시각으로 판단한 회차 시간 초과 → 예전 데이터는 구매자용 이유로 대신)
 export const getSellerFailReasons = (request, now = Date.now()) =>
-  request.sellerFailReasons ?? getTimeoutReasons(request, now)?.seller ?? getFailReasons(request, now);
+  (request.sellerFailReasons && fixOrdinalSpacing(request.sellerFailReasons)) ??
+  getTimeoutReasons(request, now)?.seller ??
+  getFailReasons(request, now);
 
 // 2차 가리기 후 요청자에게 전송: 가린 사진 2 저장 + '두 번째 촬영'·'인증 완료' 체크 → 구매자 결과 '인증 성공'
 export function completeSellerSession(id, photo) {
