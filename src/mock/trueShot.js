@@ -1,6 +1,6 @@
 // TODO: 트루샷 API 연동 전까지 쓰는 목 데이터
 
-// 요청 후 판매자가 촬영을 마쳐야 하는 시간 (30분)
+// 요청 후 판매자가 인증을 시작해야 하는 시간 (30분, 시작하지 않으면 시간 만료)
 export const REQUEST_EXPIRE_MINUTES = 30;
 
 // 판매자에게 링크와 함께 보내는 안내 문구 (빈 줄로 문단 구분)
@@ -78,8 +78,11 @@ export const SESSION_FAIL_REASONS = {
   },
 };
 
-// 구매자 요청이 30분 지나 만료된 세션을 판매자가 열었을 때
+// 판매자가 30분 안에 인증을 시작하지 않아 만료된 세션을 판매자가 열었을 때
 export const EXPIRED_REASONS = [{ passed: false, text: "시간 만료" }];
+
+// 시간 만료 시 구매자 결과 화면 문구 (11-16 기획 확정)
+export const EXPIRED_BUYER_REASON = "판매자가 30분 안에 인증을 시작하지 않았어요.";
 
 // 판독 로딩을 보여주는 시간(ms)
 export const JUDGE_LOADING_MS = 2000;

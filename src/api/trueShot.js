@@ -2,10 +2,14 @@
 // TODO: 트루샷 API 연동 시 각 함수 안쪽만 실제 요청으로 바꾸면 됨 (화면은 이 파일의 함수만 사용)
 // 지금은 목업: 요청 목록을 localStorage에 저장 (새로고침·새 탭에서도 같은 요청을 찾을 수 있게)
 import {
+  EXPIRED_BUYER_REASON,
+  FIRST_SHOT_SECONDS,
   REQUEST_EXPIRE_MINUTES,
   SECOND_MISSIONS,
+  SECOND_SHOT_SECONDS,
   SELLER_FAIL_REASONS,
   SELLER_MESSAGE,
+  SESSION_FAIL_REASONS,
   SUCCESS_REASONS,
   createMockRequests,
 } from "../mock/trueShot.js";
@@ -93,16 +97,41 @@ export function renameTrueShotRequest(id, name) {
   writeStorage(loadRequests().map((request) => (request.id === id ? { ...request, name: trimmed } : request)));
 }
 
-// 결과 전인데 만료 시간이 지났는지
+// 시간 만료: 판매자가 30분 안에 인증을 시작하지 않은 경우만 (시작했으면 30분이 지나도 만료 아님)
 export const isExpired = (request, now = Date.now()) =>
-  request.result === null && now > new Date(request.expiresAt).getTime();
+  request.result === null && !request.firstStartedAt && now > new Date(request.expiresAt).getTime();
 
-// 화면에 보여줄 상태 (pending 촬영 대기 / success 인증 성공 / failed 인증 실패, 만료도 실패)
+const passedSeconds = (startedAt, seconds, now) =>
+  Boolean(startedAt) && now > new Date(startedAt).getTime() + seconds * 1000;
+
+// 판매자가 인증을 시작한 뒤 회차 제한 시간(1차 3분, 2차 1분)을 넘겼는지 → 넘긴 회차(1, 2), 아니면 null
+// 판매자 화면이 열려 있으면 실패가 저장되지만, 중간에 닫아도 구매자 쪽에서 실패로 보이게 시각으로도 판단
+export function getTimeoutRound(request, now = Date.now()) {
+  if (request.result !== null) return null;
+  if (!request.firstShotAt && passedSeconds(request.firstStartedAt, FIRST_SHOT_SECONDS, now)) return 1;
+  if (request.firstShotAt && !request.secondShotAt && passedSeconds(request.secondStartedAt, SECOND_SHOT_SECONDS, now)) return 2;
+  return null;
+}
+
+const TIMEOUT_REASON_KEYS = { 1: "firstTimeout", 2: "secondTimeout" };
+
+// 회차 시간 초과 실패 이유 { seller, buyer } (시간 초과가 아니면 null)
+const getTimeoutReasons = (request, now) => {
+  const round = getTimeoutRound(request, now);
+  return round ? SESSION_FAIL_REASONS[TIMEOUT_REASON_KEYS[round]] : null;
+};
+
+// 화면에 보여줄 상태
+// pending 촬영 대기 / success 인증 성공 / failed 인증 실패(판독 실패, 회차 시간 초과) / expired 시간 만료(30분 안에 시작 안 함)
 export function getRequestStatus(request, now = Date.now()) {
   if (request.result === "success") return "success";
-  if (request.result === "failed" || isExpired(request, now)) return "failed";
+  if (request.result === "failed" || getTimeoutRound(request, now)) return "failed";
+  if (isExpired(request, now)) return "expired";
   return "pending";
 }
+
+// 시간 만료 결과 화면 문구
+export const getExpiredReason = () => EXPIRED_BUYER_REASON;
 
 // 판매자에게 보낼 링크 (임시 경로)
 export const getSellerLink = (id) => `${window.location.origin}/trueshot/seller/${id}`;
@@ -130,9 +159,13 @@ export function getSuccessReasons(request) {
 }
 
 // 실패 이유 ({ passed, text } 목록)
-// 판정된 이유가 저장돼 있으면 그대로, 없으면(시간 만료 등) 마친 촬영은 체크 + 마지막에 "시간 만료"
-export function getFailReasons(request) {
+// 판정된 이유가 저장돼 있으면 그대로, 판매자 화면이 닫혀 저장되지 않은 회차 시간 초과는 시각으로 판단
+// 둘 다 없는 예전 데이터는 마친 촬영은 체크 + 마지막에 "시간 만료"
+export function getFailReasons(request, now = Date.now()) {
   if (request.failReasons) return request.failReasons;
+
+  const timeoutReasons = getTimeoutReasons(request, now);
+  if (timeoutReasons) return timeoutReasons.buyer;
 
   return [
     ...(request.firstShotAt ? [{ passed: true, text: "첫번째 사진 인증 성공" }] : []),
@@ -141,13 +174,13 @@ export function getFailReasons(request) {
   ];
 }
 
-// 진행 단계 4개 (인증 완료는 성공·실패·만료 모두 완료로 봄)
+// 진행 단계 4개 (인증 완료는 성공·실패만 완료, 시간 만료는 '링크 제작 완료'만 체크)
 export function getRequestProgress(request, now = Date.now()) {
   return [
     { label: "링크 제작 완료", done: true },
     { label: "판매자의 첫번째 촬영", done: Boolean(request.firstShotAt) },
     { label: "판매자의 두번째 촬영", done: Boolean(request.secondShotAt) },
-    { label: "인증 완료", done: getRequestStatus(request, now) !== "pending" },
+    { label: "인증 완료", done: ["success", "failed"].includes(getRequestStatus(request, now)) },
   ];
 }
 
@@ -200,8 +233,9 @@ export function failSellerSession(id, reasons) {
   });
 }
 
-// 판매자 결과 화면의 실패 이유 (판매자용 이유가 없는 예전 데이터는 구매자용 이유로 대신)
-export const getSellerFailReasons = (request) => request.sellerFailReasons ?? getFailReasons(request);
+// 판매자 결과 화면의 실패 이유 (저장된 판매자용 이유 → 시각으로 판단한 회차 시간 초과 → 예전 데이터는 구매자용 이유로 대신)
+export const getSellerFailReasons = (request, now = Date.now()) =>
+  request.sellerFailReasons ?? getTimeoutReasons(request, now)?.seller ?? getFailReasons(request, now);
 
 // 2차 가리기 후 요청자에게 전송: 가린 사진 2 저장 + '두번째 촬영'·'인증 완료' 체크 → 구매자 결과 '인증 성공'
 export function completeSellerSession(id, photo) {

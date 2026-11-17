@@ -1,10 +1,12 @@
 import styled from "styled-components";
 
-// 상태별 이름과 색 (pending 촬영 대기 노랑 / success 인증 성공 초록 / failed 인증 실패 빨강)
+// 상태별 이름과 색 (pending 촬영 대기 노랑 / success 인증 성공 초록 / failed 인증 실패 빨강 / expired 시간 만료 회색)
+// 시간 만료는 피그마 디자인이 없어 프로젝트 회색 토큰 사용 (배경 트루켓/연연그레이 #dedbe5, 글자 트루켓/보라그레이 #4e4a57)
 const STATUS_STYLE = {
   pending: { label: "촬영 대기", bg: "#fff4dd", color: "#bf7100" },
   success: { label: "인증 성공", bg: "#d6f7e3", color: "#1d6b43" },
   failed: { label: "인증 실패", bg: "#ffdfdf", color: "#a81e14" },
+  expired: { label: "시간 만료", bg: "#dedbe5", color: "#4e4a57" },
 };
 
 const StyledBadge = styled.span`

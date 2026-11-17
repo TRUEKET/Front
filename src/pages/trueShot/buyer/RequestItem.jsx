@@ -38,7 +38,7 @@ const StyledName = styled.span`
   white-space: nowrap;
 `;
 
-// 요청 시각 + (촬영 대기일 때만) 만료 예정 시각
+// 요청 시각 + (판매자가 아직 시작 안 한 촬영 대기일 때만) 만료 예정 시각
 const StyledDates = styled.span`
   display: flex;
   gap: 4px;
@@ -61,7 +61,7 @@ export default function RequestItem({ request, onClick }) {
         <StyledName>{request.name}</StyledName>
         <StyledDates>
           {formatDateTime(request.createdAt)}
-          {status === "pending" && <strong>| {formatTime(request.expiresAt)} 만료 예정</strong>}
+          {status === "pending" && !request.firstStartedAt && <strong>| {formatTime(request.expiresAt)} 만료 예정</strong>}
         </StyledDates>
       </StyledInfo>
       <TrueShotStatusBadge status={status} />
