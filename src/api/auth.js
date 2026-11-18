@@ -1,10 +1,9 @@
-// 인증 관련 로직 모음
-// TODO: 인증 API 연동 시 각 함수 안쪽만 실제 요청으로 바꾸면 됨 (화면은 이 파일의 함수만 사용)
-// 지금은 목업: 가입한 계정과 로그인 상태를 localStorage에 저장
-import { MOCK_VERIFY_CODE, VERIFY_TIME_LIMIT } from "../mock/auth.js";
-
-const ACCOUNTS_KEY = "trueket_accounts";
-const CURRENT_USER_KEY = "trueket_current_user";
+// 인증 관련 로직 모음 (화면은 이 파일의 함수만 사용)
+// 백엔드 명세: TRUEKET/Back docs/auth-api.md (서버 세션 쿠키 + CSRF)
+// VITE_USE_MOCK=true면 mock/authApi.js(localStorage 목업)로, 아니면 실제 서버로 요청
+import { ApiError, api, resetCsrfToken } from "./client.js";
+import { USE_MOCK } from "./mockMode.js";
+import * as mockAuth from "../mock/authApi.js";
 
 // 이메일 형식 (아이디@도메인.최상위도메인)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,138 +30,125 @@ export const formatPhone = (value) => {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 };
 
-// localStorage 읽기·쓰기 (사생활 보호 모드 등에서 막혀도 화면이 깨지지 않도록 감쌈)
-const readStorage = (key, fallback) => {
-  try {
-    const value = localStorage.getItem(key);
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-};
+// 서버로 보낼 숫자만 있는 번호 (01012345678)
+const phoneDigits = (phone) => phone.replace(/\D/g, "");
 
-const writeStorage = (key, value) => {
-  try {
-    if (value === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // 저장 실패 시 무시 (목업 단계)
-  }
-};
+// 서버는 뒷 4자리만 줌 → 010-****-5678 (헤더 팝업·계정 화면)
+export const maskPhoneLast4 = (phoneLast4 = "") => `010-****-${phoneLast4}`;
 
-// 로그인 상태가 바뀔 때 보내는 알림 (헤더 등이 화면 이동 없이 바로 바뀌도록)
-const AUTH_CHANGE_EVENT = "trueket-auth-change";
+// ---------- 로그인 상태 ----------
+// undefined: 확인 중 (GET /me 응답 전) / null: 비로그인 / { id, email, phoneLast4 }: 로그인
 
-// 로그인 사용자 저장 + 알림
+let currentUser;
+let loadPromise = null;
+const listeners = new Set();
+
 const setCurrentUser = (user) => {
-  writeStorage(CURRENT_USER_KEY, user);
-  window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+  currentUser = user;
+  listeners.forEach((listener) => listener());
 };
 
-// 로그인 상태 변경 구독 (다른 탭에서 바뀐 것도 받음), 구독 해제 함수를 돌려줌
+export const getCurrentUser = () => currentUser;
+
+// 로그인 상태 변경 구독, 구독 해제 함수를 돌려줌 (useSyncExternalStore용)
 export function subscribeAuthChange(callback) {
-  const handleStorage = (e) => {
-    if (e.key === null || e.key === CURRENT_USER_KEY) callback();
-  };
-  window.addEventListener(AUTH_CHANGE_EVENT, callback);
-  window.addEventListener("storage", handleStorage);
-  return () => {
-    window.removeEventListener(AUTH_CHANGE_EVENT, callback);
-    window.removeEventListener("storage", handleStorage);
-  };
+  listeners.add(callback);
+  return () => listeners.delete(callback);
 }
 
-// 화면에 저장할 사용자 정보 (비밀번호 제외)
-const toUser = ({ email, phone }) => ({ email, phone });
+// GET /me: 401이면 비로그인
+const fetchMe = async () => {
+  try {
+    return USE_MOCK ? await mockAuth.me() : await api.get("/me");
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return null;
+    throw error;
+  }
+};
 
-// 인증번호 전송: 시연용 수신함에 보여줄 문자 내용을 돌려줌
-export async function sendVerifyCode(phone) {
-  return {
-    phone: formatPhone(phone),
-    code: MOCK_VERIFY_CODE,
-    expiresIn: VERIFY_TIME_LIMIT,
-  };
+// 앱에서 처음 한 번 로그인 상태 확인 (동시에 여러 화면이 불러도 요청은 한 번)
+// 네트워크 오류 등으로 실패하면 비로그인으로 보고, 다음 호출 때 다시 확인
+export function loadCurrentUser() {
+  if (!loadPromise) {
+    loadPromise = fetchMe()
+      .then((user) => setCurrentUser(user))
+      .catch(() => {
+        loadPromise = null;
+        setCurrentUser(null);
+      });
+  }
+  return loadPromise;
 }
 
-// 회원가입 후 바로 로그인 상태로 저장
-export async function signup({ email, password, phone }) {
-  const accounts = readStorage(ACCOUNTS_KEY, []);
-  const account = { email: email.trim(), password, phone: formatPhone(phone) };
-  const others = accounts.filter((item) => item.email !== account.email);
+// 가입·로그인·로그아웃으로 세션이 바뀌면 CSRF 토큰도 다시 받아야 함
+const afterSessionChange = (user) => {
+  resetCsrfToken();
+  loadPromise = Promise.resolve();
+  setCurrentUser(user);
+  return user;
+};
 
-  writeStorage(ACCOUNTS_KEY, [...others, account]);
-  setCurrentUser(toUser(account));
-  return toUser(account);
+// ---------- 휴대폰 인증 (가입용) ----------
+
+// 인증번호 발송 → { verificationId, expiresAt, demoSms? }
+// demoSms는 시연용 서버에서만 옴 (실제 문자 대신 수신함에 보여줄 코드)
+// 3분 유효, 재전송은 60초 간격 (429), 같은 브라우저 세션에서 확인·가입해야 함
+export function sendVerifyCode(phone) {
+  const formatted = formatPhone(phone);
+  return USE_MOCK ? mockAuth.sendPhoneCode(formatted) : api.post("/auth/phone/send", { phone: formatted });
 }
 
-// 가입된 계정과 이메일·비밀번호가 같으면 로그인, 아니면 에러
+// 받은 코드 확인 (틀리면 400, 5회 오입력 후에는 다시 받아야 함)
+export function confirmVerifyCode({ verificationId, phone, code }) {
+  const body = { verificationId, phone: phoneDigits(phone), code };
+  return USE_MOCK ? mockAuth.verifyPhoneCode(body) : api.post("/auth/phone/verify", body);
+}
+
+// ---------- 가입·로그인·로그아웃 ----------
+
+// 회원가입 (인증을 마친 verificationId 필요, 성공하면 바로 로그인) → 사용자
+// 만 14세 확인은 서버 필드가 없어 화면에서만 체크
+export async function signup({ email, password, phone, verificationId }) {
+  const body = { email: email.trim(), password, phone: phoneDigits(phone), verificationId, privacyConsent: true };
+  const user = USE_MOCK ? await mockAuth.signup(body) : await api.post("/auth/signup", body);
+  return afterSessionChange(user);
+}
+
+// 로그인 → 사용자 (실패하면 서버 문구를 담은 ApiError)
 export async function login({ email, password }) {
-  const accounts = readStorage(ACCOUNTS_KEY, []);
-  const account = accounts.find((item) => item.email === email.trim() && item.password === password);
-
-  if (!account) throw new Error("이메일 또는 비밀번호가 일치하지 않습니다.");
-
-  setCurrentUser(toUser(account));
-  return toUser(account);
+  const body = { email: email.trim(), password };
+  const user = USE_MOCK ? await mockAuth.login(body) : await api.post("/auth/login", body);
+  return afterSessionChange(user);
 }
 
-export function logout() {
-  setCurrentUser(null);
+// 로그아웃 (서버 세션 무효화). 요청이 실패해도 화면은 로그아웃 상태로 바꿈
+export async function logout() {
+  try {
+    if (USE_MOCK) await mockAuth.logout();
+    else await api.post("/auth/logout");
+  } finally {
+    afterSessionChange(null);
+  }
 }
-
-// 로그인한 사용자 ({ email, phone }), 비로그인이면 null
-export function getCurrentUser() {
-  return readStorage(CURRENT_USER_KEY, null);
-}
-
-// 010-1234-5678 → 010-****-5678 (내 정보 팝업)
-export const maskPhone = (phone = "") => phone.replace(/^(\d{3})-?\d{3,4}-?(\d{4})$/, "$1-****-$2");
-
-// 헤더에 보여줄 전화번호 뒷자리 4개
-export const getPhoneLast4 = (phone = "") => phone.replace(/\D/g, "").slice(-4);
 
 // ---------- 내 계정 정보 수정 ----------
+// TODO: 내 정보 API 연동(api/account.js)에서 실제 요청으로 교체. 지금은 목업 계정만 수정됨
 
 export const PASSWORD_CONFIRM_ERROR = "비밀번호가 일치하지 않습니다.";
 export const CURRENT_PASSWORD_ERROR = "현재 비밀번호가 일치하지 않습니다.";
 
-// 로그인한 사용자의 가입 계정 하나를 바꿔 저장하고, 로그인 정보도 같이 갱신
-const updateCurrentAccount = (patch) => {
-  const user = getCurrentUser();
-  const accounts = readStorage(ACCOUNTS_KEY, []);
-  const account = user && accounts.find((item) => item.email === user.email);
-  if (!account) throw new Error("로그인이 필요합니다.");
-
-  const updated = { ...account, ...patch };
-  writeStorage(
-    ACCOUNTS_KEY,
-    accounts.map((item) => (item.email === user.email ? updated : item)),
-  );
-  setCurrentUser(toUser(updated));
-  return toUser(updated);
-};
-
 // 비밀번호 변경 (현재 비밀번호가 다르면 에러)
 export async function changePassword({ currentPassword, newPassword }) {
-  const user = getCurrentUser();
-  const account = readStorage(ACCOUNTS_KEY, []).find((item) => item.email === user?.email);
-  if (!account || account.password !== currentPassword) throw new Error(CURRENT_PASSWORD_ERROR);
-
-  return updateCurrentAccount({ password: newPassword });
+  return setCurrentUser(await mockAuth.changePassword({ currentPassword, newPassword }));
 }
 
 // 전화번호 변경 (인증을 마친 번호)
 export async function changePhone(phone) {
-  return updateCurrentAccount({ phone: formatPhone(phone) });
+  return setCurrentUser(await mockAuth.changePhone(phone));
 }
 
-// 탈퇴: 가입 계정을 지우고 로그아웃
-// 목업 단계라 계정 정보만 지움 (트루샷 요청·신고 목데이터는 사용자별로 나뉘어 있지 않아 그대로 둠)
+// 탈퇴: 계정을 지우고 로그아웃
 export async function withdraw() {
-  const user = getCurrentUser();
-  writeStorage(
-    ACCOUNTS_KEY,
-    readStorage(ACCOUNTS_KEY, []).filter((item) => item.email !== user?.email),
-  );
-  logout();
+  await mockAuth.withdraw();
+  afterSessionChange(null);
 }

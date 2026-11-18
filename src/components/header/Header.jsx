@@ -5,7 +5,6 @@ import ticketIcon from "../../assets/icons/header_puple_tictek.svg";
 import personBadgeIcon from "../../assets/icons/header_person_badge.svg";
 import MyInfoPopup from "./MyInfoPopup.jsx";
 import useCurrentUser from "../../hooks/useCurrentUser.js";
-import { getPhoneLast4 } from "../../api/auth.js";
 
 // 헤더 전체 영역: 로고 블럭은 왼쪽 끝, 로그인 버튼은 오른쪽 끝에 붙임
 const StyledHeader = styled.header`
@@ -113,12 +112,13 @@ export default function Header() {
           <StyledTrueketspan02>KET</StyledTrueketspan02>
         </StyledLogoText>
       </StyledLogo>
-      {hideAccount ? null : user ? (
+      {/* 로그인 확인 중(user === undefined)에는 비워 둠 (새로고침 시 로그인 버튼이 깜빡이지 않게) */}
+      {hideAccount || user === undefined ? null : user ? (
         <StyledUserButton type="button" aria-haspopup="dialog" onClick={() => setIsPopupOpen(true)}>
           <StyledBadgeIcon>
             <img src={personBadgeIcon} alt="" />
           </StyledBadgeIcon>
-          {getPhoneLast4(user.phone)}
+          {user.phoneLast4}
         </StyledUserButton>
       ) : (
         <StyledLoginButton type="button" onClick={() => navigate("/auth")}>

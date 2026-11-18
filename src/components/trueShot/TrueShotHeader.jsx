@@ -4,7 +4,6 @@ import styled from "styled-components";
 import personBadgeIcon from "../../assets/icons/header_person_badge.svg";
 import MyInfoPopup from "../header/MyInfoPopup.jsx";
 import useCurrentUser from "../../hooks/useCurrentUser.js";
-import { getPhoneLast4 } from "../../api/auth.js";
 
 // 위 12px, 양옆 16px 띄우고 높이 56 안에서 로고는 왼쪽, 배지는 오른쪽
 const StyledHeader = styled.header`
@@ -80,12 +79,13 @@ export default function TrueShotHeader() {
       <StyledLogo>
         TRUE<span>-SHOT</span>
       </StyledLogo>
-      {user ? (
+      {/* 로그인 확인 중(user === undefined)에는 비워 둠 */}
+      {user === undefined ? null : user ? (
         <StyledBadge type="button" aria-haspopup="dialog" onClick={() => setIsPopupOpen(true)}>
           <StyledBadgeIcon>
             <img src={personBadgeIcon} alt="" />
           </StyledBadgeIcon>
-          {getPhoneLast4(user.phone)}
+          {user.phoneLast4}
         </StyledBadge>
       ) : (
         <StyledLoginButton type="button" onClick={() => navigate("/auth")}>

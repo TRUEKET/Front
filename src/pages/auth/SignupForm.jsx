@@ -5,10 +5,11 @@ import FormField from "../../components/auth/FormField.jsx";
 import PhoneVerify from "../../components/auth/PhoneVerify.jsx";
 import AgreeCheckbox from "../../components/auth/AgreeCheckbox.jsx";
 import PrivacyPolicySheet from "./PrivacyPolicySheet.jsx";
-import { StyledBottomAction, StyledFields } from "../../components/auth/authStyles.js";
+import { StyledBottomAction, StyledFieldError, StyledFields } from "../../components/auth/authStyles.js";
 import { EMAIL_ERROR, PASSWORD_ERROR, isValidEmail, isValidPassword, signup } from "../../api/auth.js";
 
 // 회원가입 폼: 이메일·비밀번호 형식 + 전화번호 인증 + 동의 2개가 모두 되면 버튼 활성
+// 가입은 인증을 마친 verificationId와 함께 보내고, 성공하면 바로 로그인 상태
 export default function SignupForm() {
   // 성공하면 원래 들어오려던 화면(없으면 홈)으로
   const redirectAfterAuth = useAuthRedirect();
@@ -16,10 +17,13 @@ export default function SignupForm() {
   const [password, setPassword] = useState("");
   const [touched, setTouched] = useState({ email: false, password: false });
   const [phone, setPhone] = useState("");
-  const [isVerified, setIsVerified] = useState(false);
+  // 전화 인증을 마치면 서버 verificationId, 아니면 null
+  const [verificationId, setVerificationId] = useState(null);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeAge, setAgreeAge] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   // 동의 시트에서 "동의하고 닫기"를 누르면 개인정보 체크박스 자동 체크
   const handleAgreeFromSheet = () => {
@@ -29,7 +33,7 @@ export default function SignupForm() {
 
   const emailValid = isValidEmail(email);
   const passwordValid = isValidPassword(password);
-  const canSubmit = emailValid && passwordValid && isVerified && agreePrivacy && agreeAge;
+  const canSubmit = emailValid && passwordValid && Boolean(verificationId) && agreePrivacy && agreeAge && !submitting;
 
   // 입력칸을 벗어났을 때만 형식 에러 표시
   const handleBlur = (field) => () => setTouched((prev) => ({ ...prev, [field]: true }));
@@ -38,8 +42,16 @@ export default function SignupForm() {
     e.preventDefault();
     if (!canSubmit) return;
 
-    await signup({ email, password, phone });
-    redirectAfterAuth();
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      await signup({ email, password, phone, verificationId });
+      redirectAfterAuth();
+    } catch (error) {
+      // 이미 가입된 이메일·번호(409), 인증 만료 등 서버 안내 문구
+      setSubmitError(error.message);
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -66,7 +78,7 @@ export default function SignupForm() {
           onBlur={handleBlur("password")}
           error={touched.password && password && !passwordValid ? PASSWORD_ERROR : ""}
         />
-        <PhoneVerify shadow phone={phone} onPhoneChange={setPhone} onVerifiedChange={setIsVerified} />
+        <PhoneVerify shadow phone={phone} onPhoneChange={setPhone} onVerifiedChange={setVerificationId} />
         <AgreeCheckbox
           checked={agreePrivacy}
           onChange={setAgreePrivacy}
@@ -78,6 +90,7 @@ export default function SignupForm() {
         <AgreeCheckbox checked={agreeAge} onChange={setAgreeAge}>
           만 14세 이상입니다.
         </AgreeCheckbox>
+        {submitError && <StyledFieldError role="alert">{submitError}</StyledFieldError>}
       </StyledFields>
 
       <StyledBottomAction>

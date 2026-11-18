@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
-import { getCurrentUser, subscribeAuthChange } from "../api/auth.js";
+import { useEffect, useSyncExternalStore } from "react";
+import { getCurrentUser, loadCurrentUser, subscribeAuthChange } from "../api/auth.js";
 
-// 로그인 사용자 ({ email, phone } 또는 null), 로그인·로그아웃·정보 변경 시 바로 다시 그려짐
+// 로그인 사용자: undefined 확인 중 / null 비로그인 / { id, email, phoneLast4 } 로그인
+// 처음 쓰일 때 GET /me로 확인하고, 로그인·로그아웃·정보 변경 시 바로 다시 그려짐
 export default function useCurrentUser() {
-  const [user, setUser] = useState(getCurrentUser);
+  const user = useSyncExternalStore(subscribeAuthChange, getCurrentUser);
 
-  useEffect(() => subscribeAuthChange(() => setUser(getCurrentUser())), []);
+  useEffect(() => {
+    loadCurrentUser();
+  }, []);
 
   return user;
 }

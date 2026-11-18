@@ -42,6 +42,15 @@ export default function MyInfo() {
   const navigate = useNavigate();
   const user = useCurrentUser();
 
+  // 로그인 확인 중: 제목만 (안내가 깜빡이지 않게)
+  if (user === undefined) {
+    return (
+      <StyledMyInfo>
+        <StyledTitle>내 정보</StyledTitle>
+      </StyledMyInfo>
+    );
+  }
+
   if (!user) {
     return (
       <StyledMyInfo>
