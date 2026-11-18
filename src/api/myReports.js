@@ -19,6 +19,35 @@ const STATUS = { PUBLISHED: "posted", RESPONDING: "responding", REVIEWING: "revi
 // 이의제기 사유 → 화면 문구 (mock/disputeReason.js와 같은 문구)
 const DISPUTE_REASON_LABEL = { NORMAL: "거래를 정상적으로 마쳤어요", REFUND: "돈을 돌려줬어요" };
 
+// 근거 세기 → 말풍선·칩 색 (판독 결과 화면과 같은 기준: 강함 빨강, 주의 노랑)
+const SEVERITY_LEVEL = { STRONG: "danger", DANGER: "danger", CAUTION: "caution" };
+
+// 판독 근거(evidenceDetails) → 주요 대화 카드 형식 (판독 결과 화면 TalkCard·TalkDetailSheet와 같은 모양)
+// 참고용 신호(informational)는 빼고, 같은 사진·같은 행동은 하나만 (강한 근거 먼저)
+const toConversations = (details = []) => {
+  const seen = new Set();
+  return details
+    .filter((detail) => !detail.informational)
+    .map((detail) => {
+      const realCase = detail.cases?.[0];
+      return {
+        photo: detail.imageIndex,
+        text: detail.quote,
+        level: SEVERITY_LEVEL[detail.severity] ?? "caution",
+        behavior: detail.action,
+        reason: detail.reason,
+        realCase: realCase ? { summary: realCase.summary, source: realCase.source, url: realCase.url } : null,
+      };
+    })
+    .sort((a, b) => a.photo - b.photo || (a.level === "danger" ? -1 : 0) - (b.level === "danger" ? -1 : 0))
+    .filter(({ photo, behavior }) => {
+      const key = `${photo}-${behavior}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
+
 // 연관 정보로 보여줄 식별자 (계좌는 상단에 따로 표시)
 const RELATED_IDENTIFIER = {
   PHONE: { type: "phone", label: "전화번호" },
@@ -50,11 +79,15 @@ const toPendingDispute = (disputes = []) => {
     id: dispute.disputeId,
     reasonLabel: DISPUTE_REASON_LABEL[dispute.reason] ?? dispute.reason,
     deadline: dispute.deadline,
+    // 판매자 설명·증빙 사진 (서버 서명 URL, 없으면 시트에서 숨김)
+    description: dispute.description ?? "",
+    photos: (dispute.proofImages ?? []).map((image) => image.imageUrl),
   };
 };
 
 // 상세 화면 데이터
-// account: 첫 번째 계좌 마스킹 값, relatedInfo: 전화번호·SNS 식별자, quotes: 판독 근거 문장
+// account: 첫 번째 계좌 마스킹 값, relatedInfo: 전화번호·SNS 식별자
+// conversations: 판독 근거 상세 (위험도·행동·이유·실제 사례), 없는 예전 신고는 quotes(근거 문장)만
 const toReportDetail = (report) => {
   const identifiers = report.identifiers ?? [];
   return {
@@ -64,6 +97,7 @@ const toReportDetail = (report) => {
     relatedInfo: identifiers
       .filter((item) => RELATED_IDENTIFIER[item.type])
       .map((item) => ({ ...RELATED_IDENTIFIER[item.type], value: item.maskedValue })),
+    conversations: toConversations(report.evidenceDetails),
     quotes: report.evidenceQuotes ?? [],
     dispute: toPendingDispute(report.disputes),
   };

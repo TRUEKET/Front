@@ -68,7 +68,7 @@ const StyledDescriptionText = styled.p`
 `;
 
 // 판매자가 낸 이의제기 신청 사유·사진·설명을 보여주는 바텀시트
-// 서버가 사유만 줄 때는 사진·설명 부분을 숨김 (photos·description이 없으면)
+// 서버 disputes의 reason·description·proofImages. 설명·사진이 없으면 그 부분을 숨김
 export default function DisputeHistorySheet({ dispute, onClose }) {
   return (
     <ScanBottomSheet onClose={onClose} gap={12} background="#fdfdfd" shadow topGap={SHEET_TOP_GAP}>

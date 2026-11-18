@@ -7,6 +7,8 @@ import ScanConfirmModal from "../../components/scan/ScanConfirmModal.jsx";
 import ReportTypeBadge from "../../components/myInfo/ReportTypeBadge.jsx";
 import { REPORT_STATUS_LABEL } from "../../components/myInfo/reportTypeStyle.js";
 import { TalkBubble, TalkDashedLine, TalkLine } from "../home/scan/ScanTalkParts.jsx";
+import TalkDetailSheet from "../home/scan/TalkDetailSheet.jsx";
+import TalkCard from "../../components/scan/TalkCard.jsx";
 import { StyledFieldError } from "../../components/auth/authStyles.js";
 import DisputeHistorySheet from "./DisputeHistorySheet.jsx";
 import { decideDispute, getMyReport } from "../../api/myReports.js";
@@ -232,7 +234,7 @@ const StyledActions = styled.div`
   gap: 24px;
 `;
 
-// 판독 근거 문장 목록 (서버는 문장만 줘서 기존 말풍선 스타일로 문장만, 위험도·행동·이유는 없음)
+// 판독 근거 상세(evidenceDetails)가 없는 예전 신고: 근거 문장만 기존 말풍선 스타일로 (위험도·행동·이유 없음)
 // 말풍선 색은 신고 종류에 맞춤 (피해 신고 위험 빨강 / 의심 제보 의심 노랑)
 const QUOTE_LEVEL = { report: "danger", suspect: "caution" };
 
@@ -246,6 +248,7 @@ const StyledQuoteList = styled.div`
 export default function MyReportDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [isTalkDetailOpen, setIsTalkDetailOpen] = useState(false);
   const [isDisputeOpen, setIsDisputeOpen] = useState(false);
   const [confirmType, setConfirmType] = useState(null);
   const [decideError, setDecideError] = useState("");
@@ -266,7 +269,9 @@ export default function MyReportDetail() {
   // 삭제됐거나 없는 신고면 리스트로
   if (!report) return <Navigate to="/myinfo/reports" replace />;
 
-  const { account, type, status, reason, date, relatedInfo, quotes, dispute } = report;
+  const { account, type, status, reason, date, relatedInfo, conversations, quotes, dispute } = report;
+  // 사기 의심 정황을 찾은 사진 수 (서버 상세에 전체 사진 수는 없음)
+  const flaggedPhotoCount = new Set(conversations.map((talk) => talk.photo)).size;
 
   // 유지(MAINTAINED)·삭제(DELETED) 결정 → 리스트로. 이미 처리됐거나 기한이 지나면(409) 안내 문구
   const handleConfirm = async () => {
@@ -329,7 +334,15 @@ export default function MyReportDetail() {
           </StyledCard>
         )}
 
-        {quotes.length > 0 && (
+        {conversations.length > 0 && (
+          <TalkCard
+            conversations={conversations}
+            summary={`사진 ${flaggedPhotoCount}장에서 사기 의심 정황을 찾았어요.`}
+            onMore={() => setIsTalkDetailOpen(true)}
+          />
+        )}
+
+        {conversations.length === 0 && quotes.length > 0 && (
           <StyledCard $gap={8}>
             <StyledCardTitleGroup>
               <StyledCardTitle>주요 대화</StyledCardTitle>
@@ -373,6 +386,9 @@ export default function MyReportDetail() {
         )}
       </StyledContent>
 
+      {isTalkDetailOpen && (
+        <TalkDetailSheet conversations={conversations} onClose={() => setIsTalkDetailOpen(false)} />
+      )}
       {isDisputeOpen && <DisputeHistorySheet dispute={dispute} onClose={() => setIsDisputeOpen(false)} />}
       {confirmType && (
         <ScanConfirmModal
