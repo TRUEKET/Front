@@ -76,7 +76,7 @@ const StyledDate = styled.span`
   font-weight: 500;
 `;
 
-// 내 신고 리스트 한 줄
+// 내 신고 리스트 한 줄 (목록 응답에 계좌가 없으면 계좌 없이 종류 배지만)
 export default function MyReportItem({ report, onClick }) {
   const { account, type, status, reason, date } = report;
 
@@ -84,7 +84,7 @@ export default function MyReportItem({ report, onClick }) {
     <StyledItem type="button" $type={type} onClick={onClick}>
       <StyledInfo>
         <StyledTop>
-          <StyledAccount>{account}</StyledAccount>
+          {account && <StyledAccount>{account}</StyledAccount>}
           <ReportTypeBadge type={type} />
         </StyledTop>
         <StyledStatus>

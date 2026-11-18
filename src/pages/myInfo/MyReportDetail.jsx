@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../components/header/BackHeader.jsx";
@@ -6,11 +6,12 @@ import MainButton from "../../components/common/MainButton.jsx";
 import ScanConfirmModal from "../../components/scan/ScanConfirmModal.jsx";
 import ReportTypeBadge from "../../components/myInfo/ReportTypeBadge.jsx";
 import { REPORT_STATUS_LABEL } from "../../components/myInfo/reportTypeStyle.js";
+import { TalkBubble, TalkDashedLine, TalkLine } from "../home/scan/ScanTalkParts.jsx";
 import TalkDetailSheet from "../home/scan/TalkDetailSheet.jsx";
-import { TalkDashedLine, TalkLine } from "../home/scan/ScanTalkParts.jsx";
 import TalkCard from "../../components/scan/TalkCard.jsx";
+import { StyledFieldError } from "../../components/auth/authStyles.js";
 import DisputeHistorySheet from "./DisputeHistorySheet.jsx";
-import { deleteReport, getMyReport, keepReport } from "../../api/myReports.js";
+import { decideDispute, getMyReport } from "../../api/myReports.js";
 import phoneIcon from "../../assets/icons/detail_phone.svg";
 import xAccountIcon from "../../assets/icons/detail_x_account.svg";
 
@@ -233,26 +234,58 @@ const StyledActions = styled.div`
   gap: 24px;
 `;
 
-// 내 신고 세부 정보 (이의제기 대기 / 명의 도용 판정 / 게시 중)
+// 판독 근거 상세(evidenceDetails)가 없는 예전 신고: 근거 문장만 기존 말풍선 스타일로 (위험도·행동·이유 없음)
+// 말풍선 색은 신고 종류에 맞춤 (피해 신고 위험 빨강 / 의심 제보 의심 노랑)
+const QUOTE_LEVEL = { report: "danger", suspect: "caution" };
+
+const StyledQuoteList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+// 내 신고 세부 정보 (GET /me/reports/{id}, 이의제기 응답 대기면 유지·삭제 결정)
 export default function MyReportDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [isTalkDetailOpen, setIsTalkDetailOpen] = useState(false);
   const [isDisputeOpen, setIsDisputeOpen] = useState(false);
   const [confirmType, setConfirmType] = useState(null);
+  const [decideError, setDecideError] = useState("");
+  // 불러오기 전 undefined, 없는 신고(404 등)면 null
+  const [report, setReport] = useState(undefined);
 
-  const report = getMyReport(id);
+  useEffect(() => {
+    const controller = new AbortController();
+    getMyReport(id, { signal: controller.signal })
+      .then(setReport)
+      .catch((error) => {
+        if (error.name !== "AbortError") setReport(null);
+      });
+    return () => controller.abort();
+  }, [id]);
+
+  if (report === undefined) return <BackHeader label="내 신고 리스트" />;
   // 삭제됐거나 없는 신고면 리스트로
   if (!report) return <Navigate to="/myinfo/reports" replace />;
 
-  const { account, type, status, reason, date, relatedInfo, photoCount, conversations, dispute } = report;
+  const { account, type, status, reason, date, relatedInfo, conversations, quotes, dispute } = report;
+  // 사기 의심 정황을 찾은 사진 수 (서버 상세에 전체 사진 수는 없음)
+  const flaggedPhotoCount = new Set(conversations.map((talk) => talk.photo)).size;
 
-  const handleConfirm = () => {
-    if (confirmType === "keep") keepReport(id);
-    else deleteReport(id);
-    navigate("/myinfo/reports", { replace: true });
-    // 긴 세부 화면에서 내려온 스크롤이 리스트에 그대로 남지 않도록 맨 위로
-    window.scrollTo(0, 0);
+  // 유지(MAINTAINED)·삭제(DELETED) 결정 → 리스트로. 이미 처리됐거나 기한이 지나면(409) 안내 문구
+  const handleConfirm = async () => {
+    const choice = confirmType;
+    setConfirmType(null);
+    setDecideError("");
+    try {
+      await decideDispute(report, choice);
+      navigate("/myinfo/reports", { replace: true });
+      // 긴 세부 화면에서 내려온 스크롤이 리스트에 그대로 남지 않도록 맨 위로
+      window.scrollTo(0, 0);
+    } catch (error) {
+      setDecideError(error.message);
+    }
   };
 
   return (
@@ -262,7 +295,7 @@ export default function MyReportDetail() {
         <StyledSummary>
           <StyledAccountGroup>
             <ReportTypeBadge type={type} />
-            <StyledAccount>{account}</StyledAccount>
+            {account && <StyledAccount>{account}</StyledAccount>}
           </StyledAccountGroup>
           <StyledSummaryBoxes>
             <StyledSummaryBox $spread>
@@ -277,35 +310,55 @@ export default function MyReportDetail() {
           </StyledSummaryBoxes>
         </StyledSummary>
 
-        <StyledCard $gap={8}>
-          <StyledCardTitleGroup>
-            <StyledCardTitle>연관 정보</StyledCardTitle>
-            <StyledCardSub>내 판독 결과에 함께 들어있던 정보</StyledCardSub>
-          </StyledCardTitleGroup>
-          <TalkLine />
-          {relatedInfo.map((info, index) => (
-            <Fragment key={info.label}>
-              <StyledRelatedRow>
-                <StyledRelatedIcon>
-                  <img src={RELATED_INFO_ICONS[info.type]} alt="" />
-                </StyledRelatedIcon>
-                <StyledRelatedTexts>
-                  <StyledRelatedLabel>{info.label}</StyledRelatedLabel>
-                  <StyledRelatedValue>{info.value}</StyledRelatedValue>
-                </StyledRelatedTexts>
-              </StyledRelatedRow>
-              {index < relatedInfo.length - 1 ? <TalkDashedLine /> : <TalkLine />}
-            </Fragment>
-          ))}
-        </StyledCard>
+        {relatedInfo.length > 0 && (
+          <StyledCard $gap={8}>
+            <StyledCardTitleGroup>
+              <StyledCardTitle>연관 정보</StyledCardTitle>
+              <StyledCardSub>내 판독 결과에 함께 들어있던 정보</StyledCardSub>
+            </StyledCardTitleGroup>
+            <TalkLine />
+            {relatedInfo.map((info, index) => (
+              <Fragment key={`${info.type}-${info.value}`}>
+                <StyledRelatedRow>
+                  <StyledRelatedIcon>
+                    <img src={RELATED_INFO_ICONS[info.type]} alt="" />
+                  </StyledRelatedIcon>
+                  <StyledRelatedTexts>
+                    <StyledRelatedLabel>{info.label}</StyledRelatedLabel>
+                    <StyledRelatedValue>{info.value}</StyledRelatedValue>
+                  </StyledRelatedTexts>
+                </StyledRelatedRow>
+                {index < relatedInfo.length - 1 ? <TalkDashedLine /> : <TalkLine />}
+              </Fragment>
+            ))}
+          </StyledCard>
+        )}
 
-        <TalkCard
-          conversations={conversations}
-          summary={`사진 ${photoCount}장 중 ${conversations.length}장에서 사기 의심 정황을 찾았어요.`}
-          onMore={() => setIsTalkDetailOpen(true)}
-        />
+        {conversations.length > 0 && (
+          <TalkCard
+            conversations={conversations}
+            summary={`사진 ${flaggedPhotoCount}장에서 사기 의심 정황을 찾았어요.`}
+            onMore={() => setIsTalkDetailOpen(true)}
+          />
+        )}
 
-        {dispute?.kind === "pending" && (
+        {conversations.length === 0 && quotes.length > 0 && (
+          <StyledCard $gap={8}>
+            <StyledCardTitleGroup>
+              <StyledCardTitle>주요 대화</StyledCardTitle>
+            </StyledCardTitleGroup>
+            <TalkLine />
+            <StyledQuoteList>
+              {quotes.map((quote) => (
+                <TalkBubble key={quote} level={QUOTE_LEVEL[type]}>
+                  {quote}
+                </TalkBubble>
+              ))}
+            </StyledQuoteList>
+          </StyledCard>
+        )}
+
+        {dispute && (
           <StyledDispute>
             <StyledDisputeBox>
               <StyledDisputeText>
@@ -328,18 +381,8 @@ export default function MyReportDetail() {
                 삭제하기
               </MainButton>
             </StyledActions>
+            {decideError && <StyledFieldError role="alert">{decideError}</StyledFieldError>}
           </StyledDispute>
-        )}
-
-        {dispute?.kind === "identityTheft" && (
-          <StyledDisputeBox>
-            <StyledDisputeText>
-              판매자가 명의 도용 이의제기를 신청했어요.
-              <br />
-              사실 관계에 따라 비공개 처리되었어요.
-            </StyledDisputeText>
-            <StyledDisputeNote>*명의 도용의 경우, 계좌 주인은 가해자가 아닌 피해자일 수 있어요.</StyledDisputeNote>
-          </StyledDisputeBox>
         )}
       </StyledContent>
 
