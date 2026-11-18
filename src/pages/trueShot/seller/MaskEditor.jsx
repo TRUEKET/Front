@@ -3,6 +3,7 @@ import styled from "styled-components";
 import MainButton from "../../../components/common/MainButton.jsx";
 import pencilIcon from "../../../assets/icons/trueshot_pencil_fill.svg";
 import eraserIcon from "../../../assets/icons/trueshot_eraser.svg";
+import { canvasToBoxes } from "../../../utils/maskBoxes.js";
 
 // 화면 기준 붓 굵기(px) - 사진 해상도에 맞춰 바꿔서 그림
 const BRUSH_SIZE = 20;
@@ -88,11 +89,11 @@ const StyledToolIcon = styled.span`
   mask: url("${({ $icon }) => $icon}") center / contain no-repeat;
 `;
 
-// 찍은 사진의 개인정보를 직접 가리는 화면 (그리기: 검정 붓 / 지우기: 그린 부분을 지워 원본으로)
-// photo: 원본 사진 data URL, onDone(가린 사진 data URL)
-// TODO: 1차 AI 자동 가리기는 미구현 (지금은 직접 그리기만)
-export default function MaskEditor({ photo, buttonLabel, onDone }) {
-  const imageRef = useRef(null);
+// 찍은 사진의 개인정보를 직접 더 가리는 화면 (그리기: 검정 붓 / 지우기: 그린 부분을 지움)
+// photo: 서버가 자동으로 가린 미리보기 사진 주소 (GET /s/{token}/preview/{n})
+// onDone(boxes): 판매자가 칠한 영역을 사각형 목록(0~1 비율, 최대 300개)으로 넘김. 서버가 사진 위에 덧칠함
+// busy: 저장 요청 중이면 버튼 비활성
+export default function MaskEditor({ photo, buttonLabel, onDone, busy = false }) {
   const canvasRef = useRef(null);
   const lastPointRef = useRef(null);
   const [size, setSize] = useState(null);
@@ -102,7 +103,6 @@ export default function MaskEditor({ photo, buttonLabel, onDone }) {
   useEffect(() => {
     const image = new Image();
     image.onload = () => {
-      imageRef.current = image;
       setSize({ width: image.width, height: image.height });
     };
     image.src = photo;
@@ -150,15 +150,9 @@ export default function MaskEditor({ photo, buttonLabel, onDone }) {
     lastPointRef.current = null;
   };
 
-  // 원본 사진 위에 가린 부분을 합쳐 JPEG로 저장
+  // 칠한 영역 → 서버로 보낼 사각형 목록 (사진 원래 크기 기준 비율)
   const handleDone = () => {
-    const output = document.createElement("canvas");
-    output.width = size.width;
-    output.height = size.height;
-    const ctx = output.getContext("2d");
-    ctx.drawImage(imageRef.current, 0, 0);
-    ctx.drawImage(canvasRef.current, 0, 0);
-    onDone(output.toDataURL("image/jpeg", 0.8));
+    onDone(canvasToBoxes(canvasRef.current));
   };
 
   return (
@@ -197,7 +191,7 @@ export default function MaskEditor({ photo, buttonLabel, onDone }) {
         ))}
       </StyledTools>
 
-      <MainButton type="button" disabled={!size} onClick={handleDone}>
+      <MainButton type="button" disabled={!size || busy} onClick={handleDone}>
         {buttonLabel}
       </MainButton>
     </StyledEditor>
