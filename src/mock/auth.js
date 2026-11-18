@@ -1,13 +1,7 @@
-// TODO: 인증 API 연동 전까지 쓰는 목 데이터
-
-// 시연용 문자 수신함에 보여줄 인증번호
-export const MOCK_VERIFY_CODE = "331565";
+// 인증 목업(mock/authApi.js)과 화면에서 쓰는 데이터
 
 // 인증번호 유효 시간(초), 3분
 export const VERIFY_TIME_LIMIT = 180;
-
-// 전송 후 자동으로 인증 완료 처리되기까지 걸리는 시간(ms)
-export const AUTO_VERIFY_DELAY = 1500;
 
 // 개인정보 수집·이용 동의 시트 항목
 // rows: 수집 항목 줄 (label: 소제목, desc: 항목, period: 보관 기간 배지)
