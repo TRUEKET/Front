@@ -49,7 +49,13 @@ const requireSession = () => {
 
 let verifications = [];
 
+// 서버와 같은 규칙: 같은 번호 재전송은 60초 뒤 (429), 3분 유효
+const RESEND_SECONDS = 60;
+
 export async function sendPhoneCode(phone) {
+  const last = verifications.findLast((item) => item.phone === digits(phone));
+  if (last && Date.now() - last.sentAt < RESEND_SECONDS * 1000) throw new ApiError(429, "인증번호는 1분 뒤 다시 받아 주세요");
+
   const code = String(Math.floor(Math.random() * 1000000)).padStart(6, "0");
   const verification = {
     id: verifications.length + 1,
@@ -57,6 +63,7 @@ export async function sendPhoneCode(phone) {
     code,
     expiresAt: Date.now() + VERIFY_TIME_LIMIT * 1000,
     verified: false,
+    sentAt: Date.now(),
   };
   verifications = [...verifications, verification];
 
@@ -74,7 +81,7 @@ export async function sendPhoneCode(phone) {
 export async function verifyPhoneCode({ verificationId, phone, code }) {
   const verification = verifications.find((item) => item.id === verificationId && item.phone === digits(phone));
   if (!verification || Date.now() > verification.expiresAt) throw new ApiError(400, "인증번호가 만료되었어요. 다시 받아 주세요.");
-  if (verification.code !== code) throw new ApiError(400, "인증번호가 일치하지 않아요.");
+  if (verification.code !== code) throw new ApiError(400, "인증번호가 일치하지 않습니다.");
   verification.verified = true;
   return null;
 }
@@ -96,7 +103,7 @@ export async function signup({ email, password, phone, verificationId }) {
 
 export async function login({ email, password }) {
   const account = readAccounts().find((item) => item.email === email && item.password === password);
-  if (!account) throw new ApiError(401, "이메일 또는 비밀번호가 일치하지 않습니다.");
+  if (!account) throw new ApiError(401, "이메일 또는 비밀번호가 맞지 않습니다.");
 
   writeStorage(SESSION_KEY, email);
   return toUser(account);
