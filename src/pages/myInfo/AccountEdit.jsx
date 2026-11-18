@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../components/header/BackHeader.jsx";
 import MainButton from "../../components/common/MainButton.jsx";
@@ -70,7 +70,7 @@ const StyledWithdrawButton = styled.button`
   cursor: pointer;
 `;
 
-// 내 계정 정보 수정 (/myinfo/account, 로그인 필요)
+// 내 계정 정보 수정 (/myinfo/account, 로그인 필요: App.jsx의 RequireLogin이 막음)
 // 비밀번호·전화번호는 '변경하기'를 누르면 카드가 펼쳐지고, 저장하면 다시 접혀 바뀐 값을 보여줌
 export default function AccountEdit() {
   const navigate = useNavigate();
@@ -79,8 +79,6 @@ export default function AccountEdit() {
   const [newPhone, setNewPhone] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
-
-  if (!user) return <Navigate to="/auth" replace />;
 
   const openEditor = (key) => setEditing((prev) => ({ ...prev, [key]: true }));
   const closeEditor = (key) => setEditing((prev) => ({ ...prev, [key]: false }));
@@ -92,14 +90,15 @@ export default function AccountEdit() {
     closeEditor("phone");
   };
 
+  // 홈으로 먼저 보낸 뒤 로그아웃 (이 화면의 로그인 가드가 안내 화면을 띄우지 않게)
   const handleLogout = () => {
-    logout();
     navigate("/");
+    logout();
   };
 
   const handleWithdraw = async () => {
-    await withdraw();
     navigate("/");
+    await withdraw();
   };
 
   return (

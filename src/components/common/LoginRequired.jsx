@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import styled from "styled-components";
+import { getFromState } from "../../hooks/useAuthRedirect.js";
 
 // 안내 문구 + 로그인 링크 (가운데)
 const StyledLoginRequired = styled.div`
@@ -27,12 +28,17 @@ const StyledAuthLink = styled(Link)`
   text-decoration: none;
 `;
 
-// 로그인이 필요한 기능 안내 (내 정보·트루샷 비로그인 화면)
+// 로그인이 필요한 기능 안내 (내 정보·트루샷 비로그인 화면, 로그인 필요 화면 직접 접근)
+// 로그인·회원가입을 마치면 지금 화면으로 돌아오도록 현재 경로를 넘김
 export default function LoginRequired() {
+  const location = useLocation();
+
   return (
     <StyledLoginRequired>
       <StyledText>회원가입 및 로그인이 필요한 기능입니다.</StyledText>
-      <StyledAuthLink to="/auth">로그인·회원가입 하러 가기 →</StyledAuthLink>
+      <StyledAuthLink to="/auth" state={getFromState(location)}>
+        로그인·회원가입 하러 가기 →
+      </StyledAuthLink>
     </StyledLoginRequired>
   );
 }

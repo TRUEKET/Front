@@ -24,6 +24,7 @@ import BuyerHome from "./pages/trueShot/buyer/BuyerHome.jsx";
 import RequestDetail from "./pages/trueShot/buyer/RequestDetail.jsx";
 import RequestResult from "./pages/trueShot/buyer/RequestResult.jsx";
 import SellerSession from "./pages/trueShot/seller/SellerSession.jsx";
+import RequireLogin from "./components/common/RequireLogin.jsx";
 
 function App() {
   return (
@@ -50,12 +51,15 @@ function App() {
           <Route path="/report/result" element={<ReportResult />} />
           <Route path="/report/form" element={<ReportForm mode="report" />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/myinfo/reports" element={<MyReports />} />
-          <Route path="/myinfo/reports/:id" element={<MyReportDetail />} />
-          <Route path="/myinfo/account" element={<AccountEdit />} />
           <Route path="/trueshot" element={<BuyerHome />} />
-          <Route path="/trueshot/requests/:id" element={<RequestDetail />} />
-          <Route path="/trueshot/requests/:id/result" element={<RequestResult />} />
+          {/* 로그인 필요: 비로그인이면 로그인 안내 → 로그인 후 이 화면으로 복귀 */}
+          <Route element={<RequireLogin />}>
+            <Route path="/myinfo/reports" element={<MyReports />} />
+            <Route path="/myinfo/reports/:id" element={<MyReportDetail />} />
+            <Route path="/myinfo/account" element={<AccountEdit />} />
+            <Route path="/trueshot/requests/:id" element={<RequestDetail />} />
+            <Route path="/trueshot/requests/:id/result" element={<RequestResult />} />
+          </Route>
           <Route path="/trueshot/seller/:id" element={<SellerSession />} />
         </Route>
       </Routes>

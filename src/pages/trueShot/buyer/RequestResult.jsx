@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
@@ -6,6 +7,7 @@ import ShotPhotos from "./ShotPhotos.jsx";
 import ResultTitle from "../../../components/trueShot/ResultTitle.jsx";
 import ReasonList from "../../../components/trueShot/ReasonList.jsx";
 import {
+  getExpiredReason,
   getFailReasons,
   getSecondMissionText,
   getRequestStatus,
@@ -24,7 +26,8 @@ const getMissions = (request) => [
 ];
 
 // 결과별 화면 차이 (피그마 기준 성공·실패 화면 수치가 조금씩 다름)
-// backLabel: 뒤로가기 문구, color: 제목 옆 막대, missionGap: 미션 카드 간격, reasonsTitle·reasonsWeight: 이유 카드 제목
+// backLabel: 뒤로가기 문구, lines: 제목 줄, color: 제목 옆 막대, barHeight: 막대 높이(두 줄 66 / 한 줄 48)
+// missionGap: 미션 카드 간격, reasonsTitle·reasonsWeight: 이유 카드 제목
 const RESULT_CONFIG = {
   success: {
     backLabel: "뒤로가기",
@@ -40,6 +43,16 @@ const RESULT_CONFIG = {
     color: "#ca2317",
     missionGap: 11,
     reasonsTitle: "실패 이유",
+    reasonsWeight: 600,
+  },
+  // 시간 만료: 피그마 디자인이 없어 실패 화면 틀 재사용, 막대는 회색(트루켓/연그레이보라 #a9a4b2)
+  expired: {
+    backLabel: "인증 요청",
+    lines: ["시간 만료"],
+    color: "#a9a4b2",
+    barHeight: 48,
+    missionGap: 11,
+    reasonsTitle: "만료 이유",
     reasonsWeight: 600,
   },
 };
@@ -97,6 +110,13 @@ const StyledCardTitle = styled.p`
   font-weight: ${({ $weight }) => $weight};
 `;
 
+// 시간 만료 이유 한 줄 (실패가 아니라 체크·X 표시 없이 문구만, 이유 목록과 같은 글자)
+const StyledExpiredReason = styled.p`
+  color: #191919;
+  font-size: 14px;
+  font-weight: 500;
+`;
+
 // 화면 아래 고정 버튼 (바닥에서 12px)
 const StyledBottomAction = styled.div`
   position: fixed;
@@ -110,7 +130,7 @@ const StyledBottomAction = styled.div`
   padding: 0 16px;
 `;
 
-// 트루샷 인증 결과 (성공: 판매자 촬영 사진 + 성공 이유 / 실패: 실패 이유)
+// 트루샷 인증 결과 (성공: 판매자 촬영 사진 + 성공 이유 / 실패: 실패 이유 / 시간 만료: 만료 문구)
 export default function RequestResult() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -130,10 +150,13 @@ export default function RequestResult() {
     <>
       <BackHeader label={config.backLabel} />
       <StyledContent>
-        <ResultTitle color={config.color}>
-          {config.lines[0]}
-          <br />
-          {config.lines[1]}
+        <ResultTitle color={config.color} barHeight={config.barHeight}>
+          {config.lines.map((line, index) => (
+            <Fragment key={line}>
+              {index > 0 && <br />}
+              {line}
+            </Fragment>
+          ))}
         </ResultTitle>
 
         <StyledCard $gap={config.missionGap}>
@@ -149,14 +172,14 @@ export default function RequestResult() {
 
         <StyledCard>
           <StyledCardTitle $weight={config.reasonsWeight}>{config.reasonsTitle}</StyledCardTitle>
-          {isSuccess ? (
+          {status === "success" && (
             <ReasonList
               reasons={successReasons.checks.map((text) => ({ passed: true, text }))}
               notes={successReasons.notes}
             />
-          ) : (
-            <ReasonList reasons={getFailReasons(request)} />
           )}
+          {status === "failed" && <ReasonList reasons={getFailReasons(request)} />}
+          {status === "expired" && <StyledExpiredReason>{getExpiredReason()}</StyledExpiredReason>}
         </StyledCard>
       </StyledContent>
 

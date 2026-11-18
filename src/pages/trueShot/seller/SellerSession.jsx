@@ -16,7 +16,9 @@ import {
   getSellerFailReasons,
   getTrueShotRequest,
   isExpired,
+  isRoundPassed,
   judgeSellerShot,
+  markRoundPassed,
   saveFirstShot,
   startSellerSession,
 } from "../../../api/trueShot.js";
@@ -50,9 +52,13 @@ export default function SellerSession() {
   const secondRemain = useCountdown(getDeadline(request?.secondStartedAt, SECOND_SHOT_SECONDS));
   const remainSeconds = round === 1 ? firstRemain : secondRemain;
 
-  // 판독을 통과하기 전에 이번 회차 시간이 다 되면 타임어택 실패
+  // 판독을 통과하기 전에 이번 회차 시간이 다 되면 타임어택 실패 (통과 시각이 저장된 회차는 제외)
   const timedOut =
-    Boolean(request?.firstStartedAt) && request.result === null && remainSeconds === 0 && !judge?.passed;
+    Boolean(request?.firstStartedAt) &&
+    request.result === null &&
+    remainSeconds === 0 &&
+    !judge?.passed &&
+    !isRoundPassed(request, round);
 
   // 타임어택 실패는 저장만 하고(화면은 timedOut으로 바로 바뀜), 구매자 결과도 실패로 바뀜
   useEffect(() => {
@@ -84,6 +90,9 @@ export default function SellerSession() {
           result = judgeSellerShot(latest, 2, { forceFail: true });
         }
       }
+
+      // 통과하면 판독 로딩을 기다리기 전에 통과 시각부터 저장 (로딩·가리기 중 시간이 지나도 실패 아님)
+      if (result.passed && !cancelled) setRequest(markRoundPassed(id, round));
 
       const wait = JUDGE_LOADING_MS - (Date.now() - startedAt);
       if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));

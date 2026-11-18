@@ -66,7 +66,7 @@ const StyledLabels = styled.ol`
   text-align: left;
 `;
 
-// 트루샷 요청 진행 단계 (링크 제작 → 첫번째 촬영 → 두번째 촬영 → 인증 완료)
+// 트루샷 요청 진행 단계 (링크 제작 → 첫 번째 촬영 → 두 번째 촬영 → 인증 완료)
 export default function RequestProgress({ steps }) {
   return (
     <StyledProgress>

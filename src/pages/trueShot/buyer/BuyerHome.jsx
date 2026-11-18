@@ -155,7 +155,7 @@ export default function BuyerHome() {
     navigate(`/trueshot/requests/${request.id}`);
   };
 
-  // 촬영 대기 → 요청 상세, 인증 성공·실패 → 결과 화면
+  // 촬영 대기 → 요청 상세, 인증 성공·실패·시간 만료 → 결과 화면
   const handleItemClick = (request) => {
     const isPending = getRequestStatus(request) === "pending";
     navigate(`/trueshot/requests/${request.id}${isPending ? "" : "/result"}`);

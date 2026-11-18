@@ -1,6 +1,6 @@
 // TODO: 트루샷 API 연동 전까지 쓰는 목 데이터
 
-// 요청 후 판매자가 촬영을 마쳐야 하는 시간 (30분)
+// 요청 후 판매자가 인증을 시작해야 하는 시간 (30분, 시작하지 않으면 시간 만료)
 export const REQUEST_EXPIRE_MINUTES = 30;
 
 // 판매자에게 링크와 함께 보내는 안내 문구 (빈 줄로 문단 구분)
@@ -59,27 +59,30 @@ export const SESSION_FAIL_REASONS = {
   secondJudge: {
     seller: SELLER_FAIL_REASONS[2],
     buyer: [
-      { passed: true, text: "첫번째 사진 인증 성공" },
+      { passed: true, text: "첫 번째 사진 인증 성공" },
       { passed: false, text: "두 번째 사진이 지시를 따르지 않음" },
     ],
   },
   // 1차 3분 초과
   firstTimeout: {
     seller: [{ passed: false, text: "3분 타임어택에 실패했어요" }],
-    buyer: [{ passed: false, text: "첫번째 사진이 시간 내에 전송되지 않음" }],
+    buyer: [{ passed: false, text: "첫 번째 사진이 시간 내에 전송되지 않음" }],
   },
   // 2차 1분 초과
   secondTimeout: {
     seller: [{ passed: false, text: "1분 타임어택에 실패했어요" }],
     buyer: [
-      { passed: true, text: "첫번째 사진 인증 성공" },
+      { passed: true, text: "첫 번째 사진 인증 성공" },
       { passed: false, text: "두 번째 사진이 시간 내에 전송되지 않음" },
     ],
   },
 };
 
-// 구매자 요청이 30분 지나 만료된 세션을 판매자가 열었을 때
+// 판매자가 30분 안에 인증을 시작하지 않아 만료된 세션을 판매자가 열었을 때
 export const EXPIRED_REASONS = [{ passed: false, text: "시간 만료" }];
+
+// 시간 만료 시 구매자 결과 화면 문구 (11-16 기획 확정)
+export const EXPIRED_BUYER_REASON = "판매자가 30분 안에 인증을 시작하지 않았어요.";
 
 // 판독 로딩을 보여주는 시간(ms)
 export const JUDGE_LOADING_MS = 2000;
@@ -88,7 +91,7 @@ const minutesLater = (date, minutes) => new Date(date.getTime() + minutes * 60 *
 
 // localStorage가 비어 있을 때 넣는 처음 요청 3건 (피그마 목록)
 // 촬영 대기 건은 고정 날짜면 바로 만료돼 실패로 보이므로, 처음 연 시각 기준으로 방금 요청한 것으로 만듦
-// firstShotAt·secondShotAt: 판매자의 첫번째·두번째 촬영 완료 시각, result: success 성공 / failed 실패 / null 결과 전
+// firstShotAt·secondShotAt: 판매자의 첫 번째·두 번째 촬영 완료 시각, result: success 성공 / failed 실패 / null 결과 전
 export function createMockRequests(now = new Date()) {
   const successAt = new Date("2026-10-09T14:26:00+09:00");
   const failedAt = new Date("2026-10-01T14:26:00+09:00");
@@ -127,7 +130,7 @@ export function createMockRequests(now = new Date()) {
       result: "failed",
       // 판정된 실패 이유 (passed: true 초록 체크 / false 빨간 X)
       failReasons: [
-        { passed: true, text: "첫번째 사진 인증 성공" },
+        { passed: true, text: "첫 번째 사진 인증 성공" },
         { passed: false, text: "두 번째 사진이 시간 내에 전송되지 않음" },
       ],
     },

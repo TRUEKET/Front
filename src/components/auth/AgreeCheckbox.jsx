@@ -1,10 +1,11 @@
 import styled from "styled-components";
 
 // 체크박스 + 문구(+ 자세히 보기 링크) 한 줄
+// 체크박스는 첫 줄 글자와 윗줄을 맞춤 (링크가 있어 두 줄이어도 체크박스가 가운데로 내려가지 않게, 두 체크박스 위치 통일)
 const StyledAgree = styled.label`
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
   color: #191919;
   font-family: "Pretendard", sans-serif;
   font-size: 12px;
