@@ -23,7 +23,7 @@ const toApiUrl = (path) => (!path ? null : /^(https?:|data:)/.test(path) ? path 
 // ---------- 구매자: 상태 ----------
 
 // 화면 상태: pending 촬영 대기 / success 인증 성공 / failed 인증 실패 / expired 시간 만료
-// 목록 응답에는 failureCode가 없어 시간 만료도 '인증 실패'로 보임 (상세·결과에서 구분)
+// 목록·상세 응답 모두 failureCode가 있어 시간 만료(REQUEST_TIMEOUT)를 목록 배지에서도 구분
 const toStatus = ({ status, failureCode }) => {
   if (status === "PASSED") return "success";
   if (status === "FAILED") return failureCode === "REQUEST_TIMEOUT" ? "expired" : "failed";

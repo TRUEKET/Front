@@ -156,7 +156,7 @@ const findByToken = (token) => {
 
 // ---------- 응답 만들기 ----------
 
-const summary = ({ id, title, status, phase, createdAt, expiresAt }) => ({ id, title, status, phase, createdAt, expiresAt });
+const summary = ({ id, title, status, phase, createdAt, expiresAt, failureCode }) => ({ id, title, status, phase, createdAt, expiresAt, failureCode });
 
 const detail = (request) => ({
   ...summary(request),
@@ -171,7 +171,6 @@ const detail = (request) => ({
   failReasons: request.failReasons,
   judgedAt: request.judgedAt,
   judgmentResult: null,
-  failureCode: request.failureCode,
   serverTime: iso(Date.now()),
   photos:
     request.status === "PASSED" && request.photosSharedAt
