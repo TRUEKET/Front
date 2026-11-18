@@ -1,28 +1,11 @@
 // 트루샷 2차 인증 손 인식 로직 모음 (MediaPipe GestureRecognizer)
-// 촬영 사진 준비(EXIF 회전 + 축소) → 손 좌표·손 모양 추출 → 백엔드 POST /api/hand-analyze
+// 촬영 사진 준비(EXIF 회전 + 축소) → 손 좌표·손 모양 추출 → 2차 사진 제출 POST /s/{token}/photo에 함께 보냄
+// 백엔드 명세: TRUEKET/Back docs/hand-analyze-api.md (별도 손 분석 API 없음, 판정은 서버가 사진 + 손 분석으로 함)
+import { api } from "./client.js";
 import { judgeSellerShot } from "./trueShot.js";
 
-// ---------- 백엔드와 맞출 값 (확정되면 여기만 바꾸면 됨) ----------
-
-// 손 좌표로 보낼 랜드마크 번호 (MediaPipe 손 랜드마크 21개 중)
-// TODO: 백엔드 확정 전 임시값. 요청서의 "손가락 끝 좌표"에 따라 검지 끝(8)으로 둠
-//       0 손목, 4 엄지 끝, 8 검지 끝, 9 중지 시작 마디(손바닥 가운데 쪽), 12 중지 끝
+// 손 좌표로 보낼 랜드마크 번호: 검지 끝(8) (MediaPipe 손 랜드마크 21개 중, 백엔드 명세 확정)
 export const HAND_POINT_INDEX = 8;
-
-// multipart 필드 이름 (TODO: 백엔드 확정 시 수정)
-export const MULTIPART_FIELDS = {
-  image: "image",
-  analysis: "analysis",
-  requestId: "requestId",
-  expectedGesture: "expectedGesture",
-  expectedSide: "expectedSide",
-};
-
-// API 주소 (VITE_API_BASE_URL이 없으면 같은 도메인 상대경로)
-export const HAND_ANALYZE_URL = `${import.meta.env.VITE_API_BASE_URL ?? ""}/api/hand-analyze`;
-
-// TODO: 백엔드 완성 전까지 실제로 보내지 않고 목업 응답 사용
-export const USE_MOCK_RESPONSE = true;
 
 // ---------- MediaPipe ----------
 
@@ -32,7 +15,7 @@ const WASM_BASE_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${ME
 const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
 
-// 한 사진에서 찾을 최대 손 개수
+// 한 사진에서 찾을 최대 손 개수 (백엔드는 최대 10개까지 받음)
 const MAX_HANDS = 4;
 
 // 손 찾기 기준 점수 (MediaPipe 기본값 0.5). 사진 속 손이 작으면 못 찾을 수 있어
@@ -142,28 +125,29 @@ export async function extractHands(canvas) {
   }
 }
 
-// ---------- 백엔드 요청 ----------
+// ---------- 2차 사진 제출 ----------
 
-// multipart 본문: 사진 + 손 분석 결과(JSON) + 요청 id + 2차 지시 기대값
-export function buildHandAnalyzeForm({ request, image, analysis }) {
-  const mission = typeof request.secondMission === "object" ? request.secondMission : null;
+// multipart 본문 (POST /s/{token}/photo)
+// n: 2, photo: 손 분석에 쓴 같은 캔버스의 JPEG, analysis: extractHands 결과 JSON (application/json part)
+// multipart 경계값(Content-Type)은 브라우저가 채움
+export function buildSecondPhotoForm({ image, analysis }) {
   const form = new FormData();
-  form.append(MULTIPART_FIELDS.image, image, "shot.jpg");
-  form.append(MULTIPART_FIELDS.analysis, JSON.stringify(analysis));
-  form.append(MULTIPART_FIELDS.requestId, request.id);
-  form.append(MULTIPART_FIELDS.expectedGesture, mission?.gesture ?? "");
-  form.append(MULTIPART_FIELDS.expectedSide, mission?.side ?? "");
+  form.append("n", "2");
+  form.append("photo", image, "photo.jpg");
+  form.append("analysis", new Blob([JSON.stringify(analysis)], { type: "application/json" }));
   return form;
 }
 
-// POST /api/hand-analyze → 판정 { passed, reasons }
-// TODO: 응답 형식은 백엔드 확정 후 맞추기. 지금은 USE_MOCK_RESPONSE라 보내지 않고 기존 목업 판정(기본 성공, forceFail이면 실패)
-export async function requestHandAnalyze({ request, image, analysis, forceFail = false }) {
-  const form = buildHandAnalyzeForm({ request, image, analysis });
+// 판매자 2차 사진 제출 (판매자 세션 쿠키 + CSRF 토큰은 client.js가 붙임, 실패하면 ApiError)
+// 응답: { number, phase, accepted, deadline, retryReasons, checks, failReasons }
+// accepted는 접수 여부일 뿐 인증 성공이 아님. phase로 결과 판단
+// (SHARE_WAITING·COMPLETED 성공 / FAILED 실패 / JUDGING이면 같은 사진을 다시 보내지 말고 GET /s/{token}/result를 약 2초마다 조회)
+export function submitSecondPhoto(token, { image, analysis }, options) {
+  return api.post(`/s/${encodeURIComponent(token)}/photo`, buildSecondPhotoForm({ image, analysis }), options);
+}
 
-  if (USE_MOCK_RESPONSE) return judgeSellerShot(request, 2, { forceFail });
-
-  const response = await fetch(HAND_ANALYZE_URL, { method: "POST", body: form });
-  if (!response.ok) throw new Error(`손 분석 요청 실패 (${response.status})`);
-  return response.json();
+// 지금 판매자 화면이 쓰는 2차 판정: 목업 판정 (기본 성공, forceFail이면 실패)
+// TODO: 트루샷 API 연동에서 판매자 링크가 token 기반이 되면 submitSecondPhoto + 결과 조회로 바꾸고, VITE_USE_MOCK일 때만 목업 판정
+export async function requestHandAnalyze({ request, forceFail = false }) {
+  return judgeSellerShot(request, 2, { forceFail });
 }
