@@ -16,6 +16,8 @@ const StyledContent = styled.div`
 export default function RequireLogin() {
   const user = useCurrentUser();
 
+  // 로그인 확인 중에는 아무것도 그리지 않음 (새로고침 시 로그인 안내가 깜빡이지 않게)
+  if (user === undefined) return null;
   if (user) return <Outlet />;
 
   return (

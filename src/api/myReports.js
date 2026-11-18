@@ -2,13 +2,13 @@
 // TODO: API 연동 시 각 함수 안쪽만 실제 요청으로 바꾸면 됨 (화면은 이 파일의 함수만 사용)
 // 지금은 목업: 메모리에만 들고 있어서 새로고침하면 처음 목데이터로 돌아감
 import { MOCK_MY_REPORTS } from "../mock/myReports.js";
-import { getCurrentUser, getPhoneLast4 } from "./auth.js";
+import { getCurrentUser } from "./auth.js";
 
 let reports = MOCK_MY_REPORTS;
 
 // 리스트 상단에 보여줄 내 전화번호 뒷자리 (로그인 사용자, 비로그인이면 빈 값)
 export function getMyPhoneLast4() {
-  return getPhoneLast4(getCurrentUser()?.phone);
+  return getCurrentUser()?.phoneLast4 ?? "";
 }
 
 export function getMyReports() {

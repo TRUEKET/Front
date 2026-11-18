@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import MainButton from "../common/MainButton.jsx";
 import InfoChipRow from "../myInfo/InfoChipRow.jsx";
-import { logout, maskPhone } from "../../api/auth.js";
+import { logout, maskPhoneLast4 } from "../../api/auth.js";
 
 // 화면 전체를 덮는 반투명 배경 (누르면 닫힘)
 const StyledOverlay = styled.div`
@@ -66,9 +66,9 @@ export default function MyInfoPopup({ user, onClose }) {
     };
   }, []);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
     onClose();
+    await logout();
   };
 
   const handleEdit = () => {
@@ -83,7 +83,7 @@ export default function MyInfoPopup({ user, onClose }) {
           <StyledTitle>내 정보</StyledTitle>
           <InfoChipRow label="이메일" value={user.email} />
           <InfoChipRow label="비밀번호" value="********" />
-          <InfoChipRow label="전화번호" value={maskPhone(user.phone)} />
+          <InfoChipRow label="전화번호" value={maskPhoneLast4(user.phoneLast4)} />
         </StyledInfo>
         <StyledActions>
           <MainButton variant="outline" type="button" onClick={handleLogout}>

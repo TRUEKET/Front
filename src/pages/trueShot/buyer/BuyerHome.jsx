@@ -186,7 +186,8 @@ export default function BuyerHome() {
           ))}
         </StyledProcess>
 
-        {user ? (
+        {/* 로그인 확인 중(user === undefined)에는 요청 영역을 비워 둠 */}
+        {user === undefined ? null : user ? (
           <>
             <MainButton variant="accent" type="button" onClick={handleRequest}>
               트루샷 요청하기

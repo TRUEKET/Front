@@ -8,7 +8,7 @@ import PhoneVerify from "../../components/auth/PhoneVerify.jsx";
 import InfoChipRow from "../../components/myInfo/InfoChipRow.jsx";
 import PasswordChangeCard from "../../components/myInfo/PasswordChangeCard.jsx";
 import useCurrentUser from "../../hooks/useCurrentUser.js";
-import { changePhone, logout, withdraw } from "../../api/auth.js";
+import { changePhone, logout, maskPhoneLast4, withdraw } from "../../api/auth.js";
 
 // 헤더 아래 16px 띄우고(피그마 기준 제목 y=84) 16px 간격, 로그아웃·탈퇴는 화면 아래쪽 (탭바 자리 100px 제외)
 const StyledContent = styled.div`
@@ -116,6 +116,7 @@ export default function AccountEdit() {
           <InfoChipRow label="비밀번호" value="********" actionLabel="변경하기" onAction={() => openEditor("password")} />
         )}
 
+        {/* 전화번호: TODO 내 정보 API 연동(GET /me/account) 전까지 서버가 주는 뒷 4자리로 마스킹해 임시 표시 */}
         {editing.phone ? (
           <PhoneVerify shadow gap={16} phone={newPhone} onPhoneChange={setNewPhone} onVerifiedChange={setPhoneVerified}>
             <MainButton type="button" disabled={!phoneVerified} onClick={handlePhoneSave}>
@@ -123,7 +124,7 @@ export default function AccountEdit() {
             </MainButton>
           </PhoneVerify>
         ) : (
-          <InfoChipRow label="전화번호" value={user.phone} actionLabel="변경하기" onAction={() => openEditor("phone")} />
+          <InfoChipRow label="전화번호" value={maskPhoneLast4(user.phoneLast4)} actionLabel="변경하기" onAction={() => openEditor("phone")} />
         )}
 
         <StyledBottom>
