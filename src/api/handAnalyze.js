@@ -2,7 +2,6 @@
 // 촬영 사진 준비(EXIF 회전 + 축소) → 손 좌표·손 모양 추출 → 2차 사진 제출 POST /s/{token}/photo에 함께 보냄
 // 백엔드 명세: TRUEKET/Back docs/hand-analyze-api.md (별도 손 분석 API 없음, 판정은 서버가 사진 + 손 분석으로 함)
 import { api } from "./client.js";
-import { judgeSellerShot } from "./trueShot.js";
 
 // 손 좌표로 보낼 랜드마크 번호: 검지 끝(8) (MediaPipe 손 랜드마크 21개 중, 백엔드 명세 확정)
 export const HAND_POINT_INDEX = 8;
@@ -142,12 +141,7 @@ export function buildSecondPhotoForm({ image, analysis }) {
 // 응답: { number, phase, accepted, deadline, retryReasons, checks, failReasons }
 // accepted는 접수 여부일 뿐 인증 성공이 아님. phase로 결과 판단
 // (SHARE_WAITING·COMPLETED 성공 / FAILED 실패 / JUDGING이면 같은 사진을 다시 보내지 말고 GET /s/{token}/result를 약 2초마다 조회)
+// 판매자 화면은 api/trueShot.js의 submitSecondShot을 통해 사용 (목업 모드 분기 포함)
 export function submitSecondPhoto(token, { image, analysis }, options) {
   return api.post(`/s/${encodeURIComponent(token)}/photo`, buildSecondPhotoForm({ image, analysis }), options);
-}
-
-// 지금 판매자 화면이 쓰는 2차 판정: 목업 판정 (기본 성공, forceFail이면 실패)
-// TODO: 트루샷 API 연동에서 판매자 링크가 token 기반이 되면 submitSecondPhoto + 결과 조회로 바꾸고, VITE_USE_MOCK일 때만 목업 판정
-export async function requestHandAnalyze({ request, forceFail = false }) {
-  return judgeSellerShot(request, 2, { forceFail });
 }

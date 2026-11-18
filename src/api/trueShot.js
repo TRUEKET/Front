@@ -1,166 +1,125 @@
-// 트루샷 요청 관련 로직 모음
-// TODO: 트루샷 API 연동 시 각 함수 안쪽만 실제 요청으로 바꾸면 됨 (화면은 이 파일의 함수만 사용)
-// 지금은 목업: 요청 목록을 localStorage에 저장 (새로고침·새 탭에서도 같은 요청을 찾을 수 있게)
+// 트루샷 요청 관련 로직 모음 (화면은 이 파일의 함수만 사용)
+// 백엔드 명세: TRUEKET/Back docs/trueshot-api.md, trueshot-finalization-api.md
+// 구매자 API는 로그인 필요, 판매자는 로그인 없이 링크 token + 시작한 브라우저 세션으로 진행
+// 시간 판정은 서버 기준 (failureCode·마감 시각·remainingMillis)
+// VITE_USE_MOCK=true면 mock/trueShotApi.js(localStorage 목업)로, 아니면 실제 서버로 요청
+import { api } from "./client.js";
+import { USE_MOCK } from "./mockMode.js";
+import * as mockTrueShot from "../mock/trueShotApi.js";
+import { submitSecondPhoto } from "./handAnalyze.js";
 import {
+  BUYER_TIMEOUT_REASONS,
   EXPIRED_BUYER_REASON,
-  FIRST_SHOT_SECONDS,
-  REQUEST_EXPIRE_MINUTES,
-  SECOND_MISSIONS,
-  SECOND_SHOT_SECONDS,
-  SELLER_FAIL_REASONS,
+  SELLER_CHECK_TEXTS,
   SELLER_MESSAGE,
-  SESSION_FAIL_REASONS,
+  SELLER_TIMEOUT_REASONS,
   SUCCESS_REASONS,
-  createMockRequests,
 } from "../mock/trueShot.js";
-import samplePhoto1 from "../assets/images/trueshot_sample_1.png";
-import samplePhoto2 from "../assets/images/trueshot_sample_2.png";
 
-// 목업 사진 이름 → 이미지 주소 (빌드마다 주소가 바뀌어 localStorage엔 이름만 저장)
-const MOCK_PHOTOS = {
-  "sample-1": samplePhoto1,
-  "sample-2": samplePhoto2,
-};
+// 서버가 주는 상대 경로(/trueshot/1/photos/1, /s/{token}/preview/1)를 요청 주소로 (client.js와 같은 기본 주소)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
+const toApiUrl = (path) => (!path ? null : /^(https?:|data:)/.test(path) ? path : `${API_BASE_URL}${path}`);
 
-const REQUESTS_KEY = "trueket_trueshot_requests";
+// ---------- 구매자: 상태 ----------
 
-// 인증코드에 쓰는 글자 (헷갈리는 0·O·1·I는 뺌)
-const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-// localStorage 읽기·쓰기 (사생활 보호 모드 등에서 막혀도 화면이 깨지지 않도록 감쌈)
-const readStorage = () => {
-  try {
-    const value = localStorage.getItem(REQUESTS_KEY);
-    return value ? JSON.parse(value) : null;
-  } catch {
-    return null;
-  }
-};
-
-const writeStorage = (requests) => {
-  try {
-    localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
-  } catch {
-    // 저장 실패 시 무시 (목업 단계)
-  }
-};
-
-// 저장된 요청이 없으면 목데이터 3건으로 처음 채움
-const loadRequests = () => {
-  const saved = readStorage();
-  if (saved) return saved;
-
-  const initial = createMockRequests();
-  writeStorage(initial);
-  return initial;
-};
-
-const createCode = () =>
-  Array.from({ length: 4 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join("");
-
-const createId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-
-// 요청 목록 (최신 순)
-export function getTrueShotRequests() {
-  return [...loadRequests()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-}
-
-// 없는 id면 null
-export function getTrueShotRequest(id) {
-  return loadRequests().find((request) => request.id === id) ?? null;
-}
-
-// 새 요청: 이름 "요청 N"(N = 지금까지 만든 요청 수 + 1), 랜덤 인증코드, 30분 뒤 만료
-export function createTrueShotRequest() {
-  const requests = loadRequests();
-  const now = new Date();
-  const request = {
-    id: createId(),
-    name: `요청 ${requests.length + 1}`,
-    code: createCode(),
-    createdAt: now.toISOString(),
-    expiresAt: new Date(now.getTime() + REQUEST_EXPIRE_MINUTES * 60 * 1000).toISOString(),
-    firstShotAt: null,
-    secondShotAt: null,
-    result: null,
-  };
-
-  writeStorage([request, ...requests]);
-  return request;
-}
-
-// 요청 이름 바꾸기 (빈 이름이면 바꾸지 않음)
-export function renameTrueShotRequest(id, name) {
-  const trimmed = name.trim();
-  if (!trimmed) return;
-
-  writeStorage(loadRequests().map((request) => (request.id === id ? { ...request, name: trimmed } : request)));
-}
-
-// 시간 만료: 판매자가 30분 안에 인증을 시작하지 않은 경우만 (시작했으면 30분이 지나도 만료 아님)
-export const isExpired = (request, now = Date.now()) =>
-  request.result === null && !request.firstStartedAt && now > new Date(request.expiresAt).getTime();
-
-const passedSeconds = (startedAt, seconds, now) =>
-  Boolean(startedAt) && now > new Date(startedAt).getTime() + seconds * 1000;
-
-// 회차별 시작 시각·제한 시간·판독 통과 시각 필드
-const ROUND_TIMES = {
-  1: { startedKey: "firstStartedAt", seconds: FIRST_SHOT_SECONDS, passedKey: "firstPassedAt" },
-  2: { startedKey: "secondStartedAt", seconds: SECOND_SHOT_SECONDS, passedKey: "secondPassedAt" },
-};
-
-// 이번 회차 AI 판독을 제한 시간 안에 통과했는지 (통과 후 가리기 중에는 시간이 지나도 실패 아님)
-export const isRoundPassed = (request, round) => Boolean(request?.[ROUND_TIMES[round].passedKey]);
-
-// 판매자가 인증을 시작한 뒤 회차 제한 시간(1차 3분, 2차 1분)을 넘겼는지 → 넘긴 회차(1, 2), 아니면 null
-// 판매자 화면이 열려 있으면 실패가 저장되지만, 중간에 닫아도 구매자 쪽에서 실패로 보이게 시각으로도 판단
-// 판독을 통과한 회차는 제외 (가리기 저장 전에 시간이 지나도 시간 초과 아님)
-export function getTimeoutRound(request, now = Date.now()) {
-  if (request.result !== null) return null;
-  const round = request.firstShotAt ? 2 : 1;
-  if (round === 2 && request.secondShotAt) return null;
-
-  const { startedKey, seconds } = ROUND_TIMES[round];
-  if (isRoundPassed(request, round)) return null;
-  return passedSeconds(request[startedKey], seconds, now) ? round : null;
-}
-
-const TIMEOUT_REASON_KEYS = { 1: "firstTimeout", 2: "secondTimeout" };
-
-// 회차 시간 초과 실패 이유 { seller, buyer } (시간 초과가 아니면 null)
-const getTimeoutReasons = (request, now) => {
-  const round = getTimeoutRound(request, now);
-  return round ? SESSION_FAIL_REASONS[TIMEOUT_REASON_KEYS[round]] : null;
-};
-
-// 화면에 보여줄 상태
-// pending 촬영 대기 / success 인증 성공 / failed 인증 실패(판독 실패, 회차 시간 초과) / expired 시간 만료(30분 안에 시작 안 함)
-export function getRequestStatus(request, now = Date.now()) {
-  if (request.result === "success") return "success";
-  if (request.result === "failed" || getTimeoutRound(request, now)) return "failed";
-  if (isExpired(request, now)) return "expired";
+// 화면 상태: pending 촬영 대기 / success 인증 성공 / failed 인증 실패 / expired 시간 만료
+// 목록·상세 응답 모두 failureCode가 있어 시간 만료(REQUEST_TIMEOUT)를 목록 배지에서도 구분
+const toStatus = ({ status, failureCode }) => {
+  if (status === "PASSED") return "success";
+  if (status === "FAILED") return failureCode === "REQUEST_TIMEOUT" ? "expired" : "failed";
   return "pending";
+};
+
+// 판매자 진행 단계 (phase 순서)
+const PHASE_ORDER = ["WAITING", "FIRST_CHECKING", "FIRST_MASKING", "SECOND_WAITING", "JUDGING", "SHARE_WAITING", "COMPLETED"];
+const reached = (phase, target) => PHASE_ORDER.indexOf(phase) >= PHASE_ORDER.indexOf(target);
+
+// 실패로 끝난 요청은 phase가 FAILED라 failureCode로 어디까지 했는지 판단
+const FAILED_FIRST_DONE = ["SECOND_PHOTO_TIMEOUT", "ANALYSIS_TIMEOUT", "VERIFICATION_FAILED"];
+const FAILED_SECOND_DONE = ["ANALYSIS_TIMEOUT", "VERIFICATION_FAILED"];
+
+// 진행 단계 4개 (시간 만료는 '링크 제작 완료'만 체크)
+const toProgress = ({ phase, status, failureCode }) => {
+  const failed = status === "FAILED";
+  const expired = failureCode === "REQUEST_TIMEOUT";
+  return [
+    { label: "링크 제작 완료", done: true },
+    {
+      label: "판매자의 첫 번째 촬영",
+      done: !expired && (failed ? FAILED_FIRST_DONE.includes(failureCode) : reached(phase, "FIRST_MASKING")),
+    },
+    {
+      label: "판매자의 두 번째 촬영",
+      done: !expired && (failed ? FAILED_SECOND_DONE.includes(failureCode) : reached(phase, "JUDGING")),
+    },
+    { label: "인증 완료", done: status === "PASSED" || (failed && !expired) },
+  ];
+};
+
+// 구매자 실패 이유 ({ passed, text } 목록)
+// 촬영 시간 초과는 기획 확정 문구, 판정 실패는 첫 사진 통과 + 서버 failReasons
+const toBuyerFailReasons = ({ failureCode, failReasons = [] }) => {
+  if (BUYER_TIMEOUT_REASONS[failureCode]) return BUYER_TIMEOUT_REASONS[failureCode];
+  const reasons = failReasons.map((text) => ({ passed: false, text }));
+  return FAILED_FIRST_DONE.includes(failureCode) ? [{ passed: true, text: "첫 번째 사진 인증 성공" }, ...reasons] : reasons;
+};
+
+// 판매자 링크 (서버 sellerPath /s/{token} → 프론트 판매자 화면 /trueshot/seller/{token})
+const toSellerLink = (sellerPath = "") => `${window.location.origin}/trueshot/seller/${sellerPath.split("/").pop()}`;
+
+// 목록 한 줄
+const toRequestSummary = (request) => ({
+  id: request.id,
+  name: request.title,
+  createdAt: request.createdAt,
+  expiresAt: request.expiresAt,
+  status: toStatus(request),
+});
+
+// 상세·결과 화면 데이터
+const toRequestDetail = (request) => {
+  const status = toStatus(request);
+  const photos = new Map((request.photos ?? []).map((photo) => [photo.number, toApiUrl(photo.url)]));
+  return {
+    ...toRequestSummary(request),
+    code: request.code,
+    sellerLink: toSellerLink(request.sellerPath),
+    status,
+    phase: request.phase,
+    instruction2: request.instruction2 ?? "",
+    progress: toProgress(request),
+    failReasons: status === "failed" ? toBuyerFailReasons(request) : [],
+    // 공유된 가림 사진 2장 (공유 전·거절이면 null → 회색 자리)
+    photos: [photos.get(1) ?? null, photos.get(2) ?? null],
+  };
+};
+
+// ---------- 구매자: API ----------
+
+// GET /trueshot → 최신 순 목록
+export async function getTrueShotRequests(options) {
+  const requests = USE_MOCK ? await mockTrueShot.listRequests() : await api.get("/trueshot", options);
+  return requests.map(toRequestSummary);
 }
 
-// 시간 만료 결과 화면 문구
-export const getExpiredReason = () => EXPIRED_BUYER_REASON;
+// POST /trueshot → 새 요청 (이름은 서버가 "요청 N"으로 정함)
+export async function createTrueShotRequest() {
+  const request = USE_MOCK ? await mockTrueShot.createRequest({}) : await api.post("/trueshot", {});
+  return toRequestDetail(request);
+}
 
-// 판매자에게 보낼 링크 (임시 경로)
-export const getSellerLink = (id) => `${window.location.origin}/trueshot/seller/${id}`;
+// GET /trueshot/{id} → 상세 (다른 사람의 요청·없는 요청은 404 ApiError)
+export async function getTrueShotRequest(id, options) {
+  const request = USE_MOCK ? await mockTrueShot.getRequest(id) : await api.get(`/trueshot/${id}`, options);
+  return toRequestDetail(request);
+}
 
 // 판매자 송신용 메시지 미리보기 문구
 export const getSellerMessage = () => SELLER_MESSAGE;
 
 // 클립보드에 복사할 내용: 안내 문구 + 판매자 링크
-export async function copySellerMessage(id) {
-  await navigator.clipboard.writeText(`${SELLER_MESSAGE}\n${getSellerLink(id)}`);
-}
-
-// 판매자 촬영 사진 2장의 이미지 주소 (아직 없으면 null → 화면에서 회색 자리 표시)
-export function getShotPhotos(request) {
-  const photos = request.photos ?? [];
-  return [0, 1].map((index) => MOCK_PHOTOS[photos[index]] ?? photos[index] ?? null);
+export async function copySellerMessage(request) {
+  await navigator.clipboard.writeText(`${SELLER_MESSAGE}\n${request.sellerLink}`);
 }
 
 // 성공 이유 (인증코드 줄에 요청의 코드를 넣음)
@@ -171,114 +130,111 @@ export function getSuccessReasons(request) {
   };
 }
 
-// localStorage에 예전 표기('첫번째', '두번째')로 저장된 이유를 새 표기로 바꿔서 보여줌 (저장값은 그대로)
-const fixOrdinalSpacing = (reasons) =>
-  reasons.map((reason) => ({
-    ...reason,
-    text: reason.text.replace(/첫번째/g, "첫 번째").replace(/두번째/g, "두 번째"),
-  }));
+// 시간 만료 결과 화면 문구
+export const getExpiredReason = () => EXPIRED_BUYER_REASON;
 
-// 실패 이유 ({ passed, text } 목록)
-// 판정된 이유가 저장돼 있으면 그대로(예전 표기는 새 표기로), 판매자 화면이 닫혀 저장되지 않은 회차 시간 초과는 시각으로 판단
-// 둘 다 없는 예전 데이터는 마친 촬영은 체크 + 마지막에 "시간 만료"
-export function getFailReasons(request, now = Date.now()) {
-  if (request.failReasons) return fixOrdinalSpacing(request.failReasons);
+// ---------- 판매자: 화면 데이터 ----------
 
-  const timeoutReasons = getTimeoutReasons(request, now);
-  if (timeoutReasons) return timeoutReasons.buyer;
+// 판매자 체크 항목 → { passed, text } (피그마 문구, 모르는 코드·상태는 서버 message, 대기·미확인은 뺌)
+export const toSellerReasons = (checks = [], code = "") =>
+  checks
+    .filter((check) => check.status === "PASSED" || check.status === "FAILED")
+    .map((check) => ({
+      passed: check.status === "PASSED",
+      text: (SELLER_CHECK_TEXTS[check.code]?.[check.status] ?? check.message).replace("{code}", code),
+    }));
 
-  return [
-    ...(request.firstShotAt ? [{ passed: true, text: "첫 번째 사진 인증 성공" }] : []),
-    ...(request.secondShotAt ? [{ passed: true, text: "두 번째 사진 인증 성공" }] : []),
-    { passed: false, text: "시간 만료" },
-  ];
-}
-
-// 진행 단계 4개 (인증 완료는 성공·실패만 완료, 시간 만료는 '링크 제작 완료'만 체크)
-export function getRequestProgress(request, now = Date.now()) {
-  return [
-    { label: "링크 제작 완료", done: true },
-    { label: "판매자의 첫 번째 촬영", done: Boolean(request.firstShotAt) },
-    { label: "판매자의 두 번째 촬영", done: Boolean(request.secondShotAt) },
-    { label: "인증 완료", done: ["success", "failed"].includes(getRequestStatus(request, now)) },
-  ];
-}
-
-// ---------- 판매자 ----------
-
-// 요청 일부 값 바꿔서 저장하고, 바뀐 요청을 돌려줌
-const updateTrueShotRequest = (id, patch) => {
-  let updated = null;
-  writeStorage(
-    loadRequests().map((request) => {
-      if (request.id !== id) return request;
-      updated = { ...request, ...patch };
-      return updated;
-    }),
-  );
-  return updated;
+// 판매자 최종 실패 이유: 시간 초과는 피그마 문구, 판정 실패는 체크 항목, 그 외는 서버 failReasons
+const toSellerFailReasons = (result) => {
+  if (SELLER_TIMEOUT_REASONS[result.failureCode]) return SELLER_TIMEOUT_REASONS[result.failureCode];
+  const reasons = toSellerReasons(result.checks, result.code);
+  return reasons.some((reason) => !reason.passed)
+    ? reasons
+    : (result.failReasons ?? []).map((text) => ({ passed: false, text }));
 };
 
-// 판매자가 "인증 시작하기"를 누름: 1차 타이머 시작 + 2차 무작위 지시를 하나 골라 저장
-export function startSellerSession(id) {
-  return updateTrueShotRequest(id, {
-    firstStartedAt: new Date().toISOString(),
-    secondMission: SECOND_MISSIONS[Math.floor(Math.random() * SECOND_MISSIONS.length)],
-  });
+// 판매자 결과(GET /s/{token}/result 등) → 화면 데이터
+// deadline: 현재 단계 마감 시각(ms, 이 브라우저 시계 기준, remainingMillis로 계산), pollAfter: 판정 중 다시 조회할 간격(ms)
+const toSellerSession = (result) => ({
+  ...result,
+  deadline: result.remainingMillis === null || result.remainingMillis === undefined ? null : Date.now() + result.remainingMillis,
+  pollAfter: result.pollAfterMillis ?? null,
+  previews: Object.fromEntries((result.photos ?? []).map((photo) => [photo.number, toApiUrl(photo.previewPath)])),
+  failReasonList: result.status === "FAILED" ? toSellerFailReasons(result) : [],
+});
+
+// ---------- 판매자: API ----------
+
+// GET /s/{token}/result (시작한 브라우저 세션이 아니면 403)
+export async function getSellerSession(token) {
+  const result = USE_MOCK ? await mockTrueShot.getResult(token) : await api.get(`/s/${token}/result`);
+  return toSellerSession(result);
 }
 
-// AI 판독 (목업: 항상 통과, forceFail이면 실패 이유와 함께 실패)
-// TODO: 판독 API 연동 시 사진을 보내고 결과를 받아오도록 교체
-export function judgeSellerShot(request, round, { forceFail = false } = {}) {
-  if (!forceFail) return { passed: true, reasons: [] };
-
-  return {
-    passed: false,
-    reasons: SELLER_FAIL_REASONS[round].map((reason) => ({ ...reason, text: reason.text.replace("{code}", request.code) })),
-  };
+// 판매자 화면 진입: 시작한 세션이면 결과(진행 상태), 시작 전이면 안내 정보
+// → { started: true, session } / { started: false, link: { title, expiresAt } }
+// 없는 링크 404, 다른 브라우저에서 이미 시작 409, 기한 지남 410 (ApiError)
+export async function enterSellerSession(token) {
+  try {
+    return { started: true, session: await getSellerSession(token) };
+  } catch (error) {
+    if (error.status !== 403) throw error;
+  }
+  const link = USE_MOCK ? await mockTrueShot.getSellerLink(token) : await api.get(`/s/${token}`);
+  return { started: false, link };
 }
 
-// AI 판독 통과 시각 저장 (결과 전이고 회차 제한 시간 안에 통과했을 때만)
-// 저장해 두면 가리기 중에 제한 시간이 지나도 구매자 쪽에서 시간 초과 실패로 보이지 않음
-export function markRoundPassed(id, round, now = Date.now()) {
-  const request = getTrueShotRequest(id);
-  const { startedKey, seconds, passedKey } = ROUND_TIMES[round];
-  if (!request || request.result !== null || passedSeconds(request[startedKey], seconds, now)) return request;
-
-  return updateTrueShotRequest(id, { [passedKey]: new Date(now).toISOString() });
+// POST /s/{token}/start: 사진 전달 동의 + 첫 촬영 3분 타이머 시작
+export async function startSellerSession(token) {
+  const body = { sellerConsented: true };
+  if (USE_MOCK) await mockTrueShot.startSeller(token, body);
+  else await api.post(`/s/${token}/start`, body);
+  return getSellerSession(token);
 }
 
-// 1차 가리기 저장: 가린 사진 1 저장 + 구매자 진행 단계 '첫 번째 촬영' 체크 + 2차 타이머 시작
-export function saveFirstShot(id, photo) {
-  const now = new Date().toISOString();
-  return updateTrueShotRequest(id, { firstShotAt: now, secondStartedAt: now, photos: [photo] });
+// POST /s/{token}/photo (n=1): 통과면 accepted, 재촬영이면 accepted false + 체크 항목
+// → { passed, reasons } (reasons: 판매자 화면 문구)
+export async function submitFirstShot(token, { image, code, forceFail = false }) {
+  let response;
+  if (USE_MOCK) {
+    response = await mockTrueShot.submitPhoto(token, { number: 1, photo: image, forceFail });
+  } else {
+    const form = new FormData();
+    form.append("n", "1");
+    form.append("photo", image, "photo.jpg");
+    response = await api.post(`/s/${token}/photo`, form);
+  }
+  const reasons = toSellerReasons(response.checks, code);
+  const failReasons = reasons.some((reason) => !reason.passed)
+    ? reasons
+    : (response.retryReasons ?? []).map((text) => ({ passed: false, text }));
+  return { passed: response.accepted, reasons: response.accepted ? reasons : failReasons };
 }
 
-// 최종 실패 저장 (reasons: { seller, buyer } 실패 이유) → 구매자 결과가 '인증 실패'로 바뀜
-export function failSellerSession(id, reasons) {
-  return updateTrueShotRequest(id, {
-    result: "failed",
-    failReasons: reasons.buyer,
-    sellerFailReasons: reasons.seller,
-  });
+// POST /s/{token}/mask: 첫 사진 자동 가림 → { maskStatus, previewUrl } (FAILED면 previewUrl null)
+export async function requestAutoMask(token) {
+  const result = USE_MOCK ? await mockTrueShot.autoMask(token) : await api.post(`/s/${token}/mask`);
+  return { maskStatus: result.maskStatus, previewUrl: toApiUrl(result.previewPath) };
 }
 
-// 판매자 결과 화면의 실패 이유 (저장된 판매자용 이유 → 시각으로 판단한 회차 시간 초과 → 예전 데이터는 구매자용 이유로 대신)
-export const getSellerFailReasons = (request, now = Date.now()) =>
-  (request.sellerFailReasons && fixOrdinalSpacing(request.sellerFailReasons)) ??
-  getTimeoutReasons(request, now)?.seller ??
-  getFailReasons(request, now);
-
-// 2차 가리기 후 요청자에게 전송: 가린 사진 2 저장 + '두 번째 촬영'·'인증 완료' 체크 → 구매자 결과 '인증 성공'
-export function completeSellerSession(id, photo) {
-  const request = getTrueShotRequest(id);
-  return updateTrueShotRequest(id, {
-    secondShotAt: new Date().toISOString(),
-    photos: [request.photos?.[0] ?? null, photo],
-    result: "success",
-  });
+// POST /s/{token}/first-mask/confirm: 판매자가 더 가린 영역(boxes) 저장 + 두 번째 미션 공개
+export async function confirmFirstMask(token, boxes) {
+  const body = { boxes };
+  if (USE_MOCK) await mockTrueShot.confirmFirstMask(token, body);
+  else await api.post(`/s/${token}/first-mask/confirm`, body);
+  return getSellerSession(token);
 }
 
-// 2차 지시 문구 (예전 데이터는 문구만 문자열로 저장돼 있음)
-export const getSecondMissionText = (request) =>
-  typeof request.secondMission === "string" ? request.secondMission : (request.secondMission?.text ?? "");
+// POST /s/{token}/photo (n=2, MediaPipe 손 분석 포함) → 접수 후 결과 다시 조회 (JUDGING이면 화면이 계속 조회)
+export async function submitSecondShot(token, { image, analysis, forceFail = false }) {
+  if (USE_MOCK) await mockTrueShot.submitPhoto(token, { number: 2, photo: image, forceFail });
+  else await submitSecondPhoto(token, { image, analysis });
+  return getSellerSession(token);
+}
+
+// POST /s/{token}/share: 2번 사진 추가 가림 + 사진 공유 (시작할 때 받은 전달 동의로 sharePhotos: true)
+export async function shareSellerPhotos(token, boxes) {
+  const body = { sharePhotos: true, boxes };
+  const result = USE_MOCK ? await mockTrueShot.share(token, body) : await api.post(`/s/${token}/share`, body);
+  return toSellerSession(result);
+}

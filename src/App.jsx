@@ -60,7 +60,7 @@ function App() {
             <Route path="/trueshot/requests/:id" element={<RequestDetail />} />
             <Route path="/trueshot/requests/:id/result" element={<RequestResult />} />
           </Route>
-          <Route path="/trueshot/seller/:id" element={<SellerSession />} />
+          <Route path="/trueshot/seller/:token" element={<SellerSession />} />
         </Route>
       </Routes>
     </BrowserRouter>

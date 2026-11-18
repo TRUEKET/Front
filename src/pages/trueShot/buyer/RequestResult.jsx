@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
@@ -6,23 +6,15 @@ import MainButton from "../../../components/common/MainButton.jsx";
 import ShotPhotos from "./ShotPhotos.jsx";
 import ResultTitle from "../../../components/trueShot/ResultTitle.jsx";
 import ReasonList from "../../../components/trueShot/ReasonList.jsx";
-import {
-  getExpiredReason,
-  getFailReasons,
-  getSecondMissionText,
-  getRequestStatus,
-  getShotPhotos,
-  getSuccessReasons,
-  getTrueShotRequest,
-} from "../../../api/trueShot.js";
+import { getExpiredReason, getSuccessReasons, getTrueShotRequest } from "../../../api/trueShot.js";
 
-// 판매자 사진 미션 (2차는 요청에 저장된 무작위 지시, 판매자가 시작하기 전이면 피그마 기본 문구)
+// 판매자 사진 미션 (2차는 서버가 공개한 지시 instruction2, 공개 전이면 피그마 기본 문구)
 const FIRST_MISSION = "종이에 인증코드 적어 예매 화면 좌측에 두고 촬영";
 const DEFAULT_SECOND_MISSION = "예매화면 오른쪽에 손가락 브이한채로 촬영";
 
 const getMissions = (request) => [
   FIRST_MISSION,
-  getSecondMissionText(request).replace("\n", " ") || DEFAULT_SECOND_MISSION,
+  request.instruction2 || DEFAULT_SECOND_MISSION,
 ];
 
 // 결과별 화면 차이 (피그마 기준 성공·실패 화면 수치가 조금씩 다름)
@@ -134,11 +126,23 @@ const StyledBottomAction = styled.div`
 export default function RequestResult() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const request = getTrueShotRequest(id);
+  // 불러오기 전 undefined, 없는 요청(404 등)이면 null
+  const [request, setRequest] = useState(undefined);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    getTrueShotRequest(id, { signal: controller.signal })
+      .then(setRequest)
+      .catch((error) => {
+        if (error.name !== "AbortError") setRequest(null);
+      });
+    return () => controller.abort();
+  }, [id]);
+
+  if (request === undefined) return <BackHeader label="뒤로가기" />;
   if (!request) return <Navigate to="/trueshot" replace />;
 
-  const status = getRequestStatus(request);
+  const { status } = request;
   // 결과 전이면 요청 상세로
   if (status === "pending") return <Navigate to={`/trueshot/requests/${id}`} replace />;
 
@@ -168,7 +172,7 @@ export default function RequestResult() {
           ))}
         </StyledCard>
 
-        {isSuccess && <ShotPhotos photos={getShotPhotos(request)} />}
+        {isSuccess && <ShotPhotos photos={request.photos} />}
 
         <StyledCard>
           <StyledCardTitle $weight={config.reasonsWeight}>{config.reasonsTitle}</StyledCardTitle>
@@ -178,7 +182,7 @@ export default function RequestResult() {
               notes={successReasons.notes}
             />
           )}
-          {status === "failed" && <ReasonList reasons={getFailReasons(request)} />}
+          {status === "failed" && <ReasonList reasons={request.failReasons} />}
           {status === "expired" && <StyledExpiredReason>{getExpiredReason()}</StyledExpiredReason>}
         </StyledCard>
       </StyledContent>
