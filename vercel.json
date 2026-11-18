@@ -1,3 +1,6 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/" }]
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://13.124.146.122.sslip.io/:path*" },
+    { "source": "/(.*)", "destination": "/" }
+  ]
 }
