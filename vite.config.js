@@ -16,6 +16,11 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
+          // 브라우저가 붙인 Origin(http://localhost:5173)을 빼고 전달
+          // 백엔드 CORS는 배포 주소만 허용해서, 그대로 보내면 POST·PATCH·DELETE가 403(Invalid CORS request)
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => proxyReq.removeHeader('origin'))
+          },
         },
       },
     },
