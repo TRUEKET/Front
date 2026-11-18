@@ -1,6 +1,5 @@
 import styled from "styled-components";
 import TrueShotStatusBadge from "../../../components/trueShot/TrueShotStatusBadge.jsx";
-import { getRequestStatus } from "../../../api/trueShot.js";
 import { formatDateTime, formatTime } from "../../../utils/dateFormat.js";
 
 // 흰 카드 + 연보라 테두리: 왼쪽 이름·날짜, 오른쪽 상태 배지
@@ -38,7 +37,7 @@ const StyledName = styled.span`
   white-space: nowrap;
 `;
 
-// 요청 시각 + (판매자가 아직 시작 안 한 촬영 대기일 때만) 만료 예정 시각
+// 요청 시각 + (촬영 대기일 때만) 요청 만료 예정 시각 (판매자가 시작했어도 요청 30분이 지나면 종료)
 const StyledDates = styled.span`
   display: flex;
   gap: 4px;
@@ -51,9 +50,9 @@ const StyledDates = styled.span`
   }
 `;
 
-// 내가 요청한 트루샷 목록 한 줄
+// 내가 요청한 트루샷 목록 한 줄 (request: api/trueShot.js의 목록 항목 { id, name, createdAt, expiresAt, status })
 export default function RequestItem({ request, onClick }) {
-  const status = getRequestStatus(request);
+  const { status } = request;
 
   return (
     <StyledItem type="button" onClick={onClick}>
@@ -61,7 +60,7 @@ export default function RequestItem({ request, onClick }) {
         <StyledName>{request.name}</StyledName>
         <StyledDates>
           {formatDateTime(request.createdAt)}
-          {status === "pending" && !request.firstStartedAt && <strong>| {formatTime(request.expiresAt)} 만료 예정</strong>}
+          {status === "pending" && <strong>| {formatTime(request.expiresAt)} 만료 예정</strong>}
         </StyledDates>
       </StyledInfo>
       <TrueShotStatusBadge status={status} />

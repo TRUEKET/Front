@@ -1,18 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import RequestProgress from "./RequestProgress.jsx";
-import pencilIcon from "../../../assets/icons/trueshot_pencil.svg";
 import copyIcon from "../../../assets/icons/trueshot_copy.svg";
-import {
-  copySellerMessage,
-  getRequestProgress,
-  getSellerMessage,
-  getTrueShotRequest,
-  renameTrueShotRequest,
-} from "../../../api/trueShot.js";
+import { copySellerMessage, getSellerMessage, getTrueShotRequest } from "../../../api/trueShot.js";
+
+// 진행 중일 때 판매자 진행 상황을 다시 불러오는 간격(ms)
+const POLL_MS = 5000;
 
 // 헤더 아래 16px 띄우고(피그마 기준 제목 y=84) 16px 간격으로 나열
 const StyledContent = styled.div`
@@ -25,7 +21,7 @@ const StyledContent = styled.div`
   text-align: left;
 `;
 
-// 요청 이름 + 연필 버튼
+// 요청 이름 (이름 수정 API가 없어 연필 버튼은 숨김)
 const StyledTitleRow = styled.div`
   display: flex;
   gap: 10px;
@@ -48,30 +44,6 @@ const StyledTitle = styled.h2`
   letter-spacing: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
-`;
-
-// 이름 수정 중일 때 제목 자리에 들어가는 입력칸
-const StyledTitleInput = styled.input`
-  ${titleFont}
-  flex: 1;
-  min-width: 0;
-  padding: 0;
-  border: none;
-  border-bottom: 1px solid #cac0f2;
-  outline: none;
-  background: none;
-`;
-
-const StyledIconButton = styled.button`
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-
-  img {
-    display: block;
-  }
 `;
 
 // 검정 카드: 왼쪽 인증코드 | 점선 | 오른쪽 2번째 지시 (높이 121)
@@ -175,47 +147,45 @@ const StyledCopyButton = styled(MainButton)`
 `;
 
 // 트루샷-구매자(요청 상세): 인증코드, 판매자에게 보낼 메시지·링크 복사, 진행 단계
+// 촬영 대기(진행 중)일 때만 5초마다 다시 불러옴 (완료·실패·시간 만료되거나 화면을 벗어나면 멈춤)
 export default function RequestDetail() {
   const { id } = useParams();
-  const [request, setRequest] = useState(() => getTrueShotRequest(id));
-  const [editingName, setEditingName] = useState(null);
+  // 불러오기 전 undefined, 없는 요청(404 등)이면 null
+  const [request, setRequest] = useState(undefined);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    let timer = null;
+
+    const load = async () => {
+      try {
+        const next = await getTrueShotRequest(id, { signal: controller.signal });
+        setRequest(next);
+        if (next.status === "pending") timer = setTimeout(load, POLL_MS);
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        // 처음 불러오기 실패면 트루샷 메인으로, 다시 불러오기 실패는 이전 화면 유지
+        setRequest((prev) => prev ?? null);
+      }
+    };
+
+    load();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [id]);
+
+  if (request === undefined) return <BackHeader label="뒤로가기" />;
   // 없는 요청이면 트루샷 메인으로
   if (!request) return <Navigate to="/trueshot" replace />;
-
-  const saveName = () => {
-    renameTrueShotRequest(id, editingName);
-    setRequest(getTrueShotRequest(id));
-    setEditingName(null);
-  };
-
-  const handleNameKeyDown = (e) => {
-    if (e.key === "Enter") saveName();
-    if (e.key === "Escape") setEditingName(null);
-  };
 
   return (
     <>
       <BackHeader label="뒤로가기" />
       <StyledContent>
         <StyledTitleRow>
-          {editingName === null ? (
-            <>
-              <StyledTitle>{request.name}</StyledTitle>
-              <StyledIconButton type="button" aria-label="요청 이름 수정" onClick={() => setEditingName(request.name)}>
-                <img src={pencilIcon} alt="" />
-              </StyledIconButton>
-            </>
-          ) : (
-            <StyledTitleInput
-              aria-label="요청 이름"
-              value={editingName}
-              onChange={(e) => setEditingName(e.target.value)}
-              onBlur={saveName}
-              onKeyDown={handleNameKeyDown}
-              autoFocus
-            />
-          )}
+          <StyledTitle>{request.name}</StyledTitle>
         </StyledTitleRow>
 
         <StyledCodeCard>
@@ -233,13 +203,13 @@ export default function RequestDetail() {
         <StyledMessageCard>
           <StyledMessageTitle>판매자 송신용 메시지</StyledMessageTitle>
           <StyledMessage>{getSellerMessage()}</StyledMessage>
-          <StyledCopyButton variant="accent" type="button" onClick={() => copySellerMessage(id)}>
+          <StyledCopyButton variant="accent" type="button" onClick={() => copySellerMessage(request)}>
             <img src={copyIcon} alt="" />
             메시지·링크 전송하기
           </StyledCopyButton>
         </StyledMessageCard>
 
-        <RequestProgress steps={getRequestProgress(request)} />
+        <RequestProgress steps={request.progress} />
       </StyledContent>
     </>
   );

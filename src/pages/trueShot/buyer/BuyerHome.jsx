@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import TrueShotHeader from "../../../components/trueShot/TrueShotHeader.jsx";
@@ -5,7 +6,7 @@ import MainButton from "../../../components/common/MainButton.jsx";
 import LoginRequired from "../../../components/common/LoginRequired.jsx";
 import RequestItem from "./RequestItem.jsx";
 import useCurrentUser from "../../../hooks/useCurrentUser.js";
-import { createTrueShotRequest, getRequestStatus, getTrueShotRequests } from "../../../api/trueShot.js";
+import { createTrueShotRequest, getTrueShotRequests } from "../../../api/trueShot.js";
 
 // 진행방식 3단계 (desc가 있으면 제목 아래 설명)
 const PROCESS_STEPS = [
@@ -147,18 +148,36 @@ const StyledNote = styled.p`
 export default function BuyerHome() {
   const navigate = useNavigate();
   const user = useCurrentUser();
-  const requests = user ? getTrueShotRequests() : [];
+  // GET /trueshot 목록 (불러오기 전 null, 실패하면 빈 목록)
+  const [requests, setRequests] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const isLoggedIn = Boolean(user);
 
-  // 새 요청을 만들어(목록 맨 위에 추가됨) 바로 요청 상세로 이동
-  const handleRequest = () => {
-    const request = createTrueShotRequest();
-    navigate(`/trueshot/requests/${request.id}`);
+  useEffect(() => {
+    if (!isLoggedIn) return undefined;
+    const controller = new AbortController();
+    getTrueShotRequests({ signal: controller.signal })
+      .then(setRequests)
+      .catch((error) => {
+        if (error.name !== "AbortError") setRequests([]);
+      });
+    return () => controller.abort();
+  }, [isLoggedIn]);
+
+  // 새 요청을 만들어(POST /trueshot) 바로 요청 상세로 이동
+  const handleRequest = async () => {
+    setCreating(true);
+    try {
+      const request = await createTrueShotRequest();
+      navigate(`/trueshot/requests/${request.id}`);
+    } catch {
+      setCreating(false);
+    }
   };
 
   // 촬영 대기 → 요청 상세, 인증 성공·실패·시간 만료 → 결과 화면
   const handleItemClick = (request) => {
-    const isPending = getRequestStatus(request) === "pending";
-    navigate(`/trueshot/requests/${request.id}${isPending ? "" : "/result"}`);
+    navigate(`/trueshot/requests/${request.id}${request.status === "pending" ? "" : "/result"}`);
   };
 
   return (
@@ -189,7 +208,7 @@ export default function BuyerHome() {
         {/* 로그인 확인 중(user === undefined)에는 요청 영역을 비워 둠 */}
         {user === undefined ? null : user ? (
           <>
-            <MainButton variant="accent" type="button" onClick={handleRequest}>
+            <MainButton variant="accent" type="button" disabled={creating} onClick={handleRequest}>
               트루샷 요청하기
             </MainButton>
 
@@ -197,10 +216,10 @@ export default function BuyerHome() {
 
             <StyledListHeader>
               <StyledListTitle>내가 요청한 목록</StyledListTitle>
-              <StyledListCount>{requests.length}건 · 최신순</StyledListCount>
+              {requests && <StyledListCount>{requests.length}건 · 최신순</StyledListCount>}
             </StyledListHeader>
 
-            {requests.length > 0 ? (
+            {requests === null ? null : requests.length > 0 ? (
               <StyledList>
                 {requests.map((request) => (
                   <RequestItem key={request.id} request={request} onClick={() => handleItemClick(request)} />
