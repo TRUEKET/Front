@@ -131,24 +131,10 @@ export async function logout() {
   }
 }
 
-// ---------- 내 계정 정보 수정 ----------
-// TODO: 내 정보 API 연동(api/account.js)에서 실제 요청으로 교체. 지금은 목업 계정만 수정됨
+// ---------- 다른 API 파일에서 쓰는 로그인 상태 변경 ----------
 
-export const PASSWORD_CONFIRM_ERROR = "비밀번호가 일치하지 않습니다.";
-export const CURRENT_PASSWORD_ERROR = "현재 비밀번호가 일치하지 않습니다.";
+// 계정 정보가 바뀌면(번호 변경 등) 서버가 준 사용자로 갱신 → 헤더 등 바로 다시 그려짐
+export const updateCurrentUser = (user) => setCurrentUser(user);
 
-// 비밀번호 변경 (현재 비밀번호가 다르면 에러)
-export async function changePassword({ currentPassword, newPassword }) {
-  return setCurrentUser(await mockAuth.changePassword({ currentPassword, newPassword }));
-}
-
-// 전화번호 변경 (인증을 마친 번호)
-export async function changePhone(phone) {
-  return setCurrentUser(await mockAuth.changePhone(phone));
-}
-
-// 탈퇴: 계정을 지우고 로그아웃
-export async function withdraw() {
-  await mockAuth.withdraw();
-  afterSessionChange(null);
-}
+// 탈퇴 등으로 세션이 끝났을 때: CSRF 다시 받고 비로그인 상태로
+export const clearSession = () => afterSessionChange(null);

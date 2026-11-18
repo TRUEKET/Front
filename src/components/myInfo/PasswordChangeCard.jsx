@@ -3,12 +3,8 @@ import styled from "styled-components";
 import Button from "../common/Button.jsx";
 import MainButton from "../common/MainButton.jsx";
 import { StyledFieldCard, StyledFieldError } from "../auth/authStyles.js";
-import {
-  PASSWORD_CONFIRM_ERROR,
-  PASSWORD_ERROR,
-  changePassword,
-  isValidPassword,
-} from "../../api/auth.js";
+import { PASSWORD_ERROR, isValidPassword } from "../../api/auth.js";
+import { PASSWORD_CONFIRM_ERROR, changePassword } from "../../api/account.js";
 
 const StyledTitle = styled.p`
   color: #191919;
@@ -59,7 +55,7 @@ const FIELDS = [
 ];
 
 // 비밀번호 변경 카드 (저장 성공 시 onSaved)
-// 새 비밀번호·확인은 입력칸을 벗어날 때 검사, 현재 비밀번호는 저장할 때 확인
+// 새 비밀번호·확인은 입력칸을 벗어날 때 검사, 현재 비밀번호는 저장할 때 서버가 확인 (틀리면 서버 문구)
 export default function PasswordChangeCard({ onSaved }) {
   const [values, setValues] = useState({ current: "", next: "", confirm: "" });
   const [touched, setTouched] = useState({ next: false, confirm: false });
@@ -77,12 +73,17 @@ export default function PasswordChangeCard({ onSaved }) {
     if (key === "current") setCurrentError("");
   };
 
+  const [saving, setSaving] = useState(false);
+
   const handleSave = async () => {
+    setSaving(true);
     try {
-      await changePassword({ currentPassword: values.current, newPassword: values.next });
+      await changePassword({ currentPassword: values.current, newPassword: values.next, confirmPassword: values.confirm });
       onSaved();
     } catch (error) {
       setCurrentError(error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -106,7 +107,7 @@ export default function PasswordChangeCard({ onSaved }) {
           {errors[key] && <StyledFieldError role="alert">{errors[key]}</StyledFieldError>}
         </StyledField>
       ))}
-      <MainButton type="button" disabled={!canSave} onClick={handleSave}>
+      <MainButton type="button" disabled={!canSave || saving} onClick={handleSave}>
         저장하기
       </MainButton>
     </StyledFieldCard>

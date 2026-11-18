@@ -119,7 +119,7 @@ export async function me() {
   return toUser(requireSession());
 }
 
-// ---------- 계정 수정 (TODO: 내 정보 API 연동에서 실제 요청으로 교체) ----------
+// ---------- 내 계정 (api/account.js가 사용) ----------
 
 const updateSessionAccount = (patch) => {
   const account = requireSession();
@@ -128,18 +128,41 @@ const updateSessionAccount = (patch) => {
     ACCOUNTS_KEY,
     readAccounts().map((item) => (item.id === account.id ? updated : item)),
   );
-  return toUser(updated);
+  return updated;
 };
 
-export async function changePassword({ currentPassword, newPassword }) {
-  if (requireSession().password !== currentPassword) throw new ApiError(400, "현재 비밀번호가 일치하지 않습니다.");
-  return updateSessionAccount({ password: newPassword });
+// GET /me/account: 전체 번호 포함
+export async function getAccount() {
+  const { id, email, phone } = requireSession();
+  return { id, email, phone: phone.replace(/^(\d{3})(\d{4})(\d{4})$/, "$1-$2-$3") };
 }
 
-export async function changePhone(phone) {
-  return updateSessionAccount({ phone: digits(phone) });
+export async function changePassword({ currentPassword, newPassword, confirmPassword }) {
+  if (newPassword !== confirmPassword) throw new ApiError(400, "새 비밀번호가 일치하지 않습니다.");
+  if (requireSession().password !== currentPassword) throw new ApiError(400, "현재 비밀번호가 맞지 않아요");
+  updateSessionAccount({ password: newPassword });
+  return { message: "비밀번호가 변경되었습니다." };
 }
 
+// 번호 변경용 인증 (로그인 필요, 나머지 규칙은 가입용과 같음)
+export async function sendPhoneChangeCode(phone) {
+  requireSession();
+  return sendPhoneCode(phone);
+}
+
+export async function verifyPhoneChangeCode(body) {
+  requireSession();
+  return verifyPhoneCode(body);
+}
+
+// PATCH /me/phone: 인증한 번호로 저장 → { id, email, phoneLast4 }
+export async function changePhone({ phone, verificationId }) {
+  const verified = verifications.find((item) => item.id === verificationId && item.verified && item.phone === digits(phone));
+  if (!verified) throw new ApiError(400, "휴대폰 인증을 먼저 완료해 주세요.");
+  return toUser(updateSessionAccount({ phone: digits(phone) }));
+}
+
+// DELETE /me
 export async function withdraw() {
   const account = requireSession();
   writeStorage(

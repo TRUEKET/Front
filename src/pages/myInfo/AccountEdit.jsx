@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../components/header/BackHeader.jsx";
@@ -8,7 +8,16 @@ import PhoneVerify from "../../components/auth/PhoneVerify.jsx";
 import InfoChipRow from "../../components/myInfo/InfoChipRow.jsx";
 import PasswordChangeCard from "../../components/myInfo/PasswordChangeCard.jsx";
 import useCurrentUser from "../../hooks/useCurrentUser.js";
-import { changePhone, logout, maskPhoneLast4, withdraw } from "../../api/auth.js";
+import { StyledFieldError } from "../../components/auth/authStyles.js";
+import { logout, maskPhoneLast4 } from "../../api/auth.js";
+import {
+  changePhone,
+  confirmPhoneChangeCode,
+  endSession,
+  getMyAccount,
+  sendPhoneChangeCode,
+  withdraw,
+} from "../../api/account.js";
 
 // 헤더 아래 16px 띄우고(피그마 기준 제목 y=84) 16px 간격, 로그아웃·탈퇴는 화면 아래쪽 (탭바 자리 100px 제외)
 const StyledContent = styled.div`
@@ -71,23 +80,46 @@ const StyledWithdrawButton = styled.button`
 `;
 
 // 내 계정 정보 수정 (/myinfo/account, 로그인 필요: App.jsx의 RequireLogin이 막음)
+// 전체 번호는 GET /me/account로 조회 (응답 전에는 뒷 4자리 마스킹으로 표시)
 // 비밀번호·전화번호는 '변경하기'를 누르면 카드가 펼쳐지고, 저장하면 다시 접혀 바뀐 값을 보여줌
 export default function AccountEdit() {
   const navigate = useNavigate();
   const user = useCurrentUser();
   const [editing, setEditing] = useState({ password: false, phone: false });
   const [newPhone, setNewPhone] = useState("");
-  const [phoneVerified, setPhoneVerified] = useState(false);
+  // 번호 변경 인증을 마치면 서버 verificationId, 아니면 null
+  const [verificationId, setVerificationId] = useState(null);
+  const [phoneError, setPhoneError] = useState("");
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [withdrawError, setWithdrawError] = useState("");
+  // GET /me/account 응답 { id, email, phone } (조회 전·실패 시 null)
+  const [account, setAccount] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getMyAccount({ signal: controller.signal })
+      .then(setAccount)
+      .catch(() => {
+        // 조회 실패 시 뒷 4자리 마스킹으로 계속 표시
+      });
+    return () => controller.abort();
+  }, []);
 
   const openEditor = (key) => setEditing((prev) => ({ ...prev, [key]: true }));
   const closeEditor = (key) => setEditing((prev) => ({ ...prev, [key]: false }));
 
   const handlePhoneSave = async () => {
-    await changePhone(newPhone);
-    setNewPhone("");
-    setPhoneVerified(false);
-    closeEditor("phone");
+    setPhoneError("");
+    try {
+      await changePhone({ phone: newPhone, verificationId });
+      setAccount((prev) => prev && { ...prev, phone: newPhone });
+      setNewPhone("");
+      setVerificationId(null);
+      closeEditor("phone");
+    } catch (error) {
+      // 다른 계정의 번호(409), 인증 만료 등 서버 안내 문구
+      setPhoneError(error.message);
+    }
   };
 
   // 홈으로 먼저 보낸 뒤 로그아웃 (이 화면의 로그인 가드가 안내 화면을 띄우지 않게)
@@ -96,9 +128,17 @@ export default function AccountEdit() {
     logout();
   };
 
+  // 탈퇴 성공 → 홈으로 이동 → 로그인 상태 비우기 / 실패(409·503)면 모달 닫고 안내 문구, 계정 유지
   const handleWithdraw = async () => {
-    navigate("/");
-    await withdraw();
+    setWithdrawError("");
+    try {
+      await withdraw();
+      navigate("/");
+      endSession();
+    } catch (error) {
+      setIsWithdrawOpen(false);
+      setWithdrawError(error.message);
+    }
   };
 
   return (
@@ -116,15 +156,28 @@ export default function AccountEdit() {
           <InfoChipRow label="비밀번호" value="********" actionLabel="변경하기" onAction={() => openEditor("password")} />
         )}
 
-        {/* 전화번호: TODO 내 정보 API 연동(GET /me/account) 전까지 서버가 주는 뒷 4자리로 마스킹해 임시 표시 */}
         {editing.phone ? (
-          <PhoneVerify shadow gap={16} phone={newPhone} onPhoneChange={setNewPhone} onVerifiedChange={setPhoneVerified}>
-            <MainButton type="button" disabled={!phoneVerified} onClick={handlePhoneSave}>
+          <PhoneVerify
+            shadow
+            gap={16}
+            phone={newPhone}
+            onPhoneChange={setNewPhone}
+            onVerifiedChange={setVerificationId}
+            sendCode={sendPhoneChangeCode}
+            verifyCode={confirmPhoneChangeCode}
+          >
+            {phoneError && <StyledFieldError role="alert">{phoneError}</StyledFieldError>}
+            <MainButton type="button" disabled={!verificationId} onClick={handlePhoneSave}>
               저장하기
             </MainButton>
           </PhoneVerify>
         ) : (
-          <InfoChipRow label="전화번호" value={maskPhoneLast4(user.phoneLast4)} actionLabel="변경하기" onAction={() => openEditor("phone")} />
+          <InfoChipRow
+            label="전화번호"
+            value={account?.phone || maskPhoneLast4(user.phoneLast4)}
+            actionLabel="변경하기"
+            onAction={() => openEditor("phone")}
+          />
         )}
 
         <StyledBottom>
@@ -134,6 +187,7 @@ export default function AccountEdit() {
           <StyledWithdrawButton type="button" onClick={() => setIsWithdrawOpen(true)}>
             탈퇴하기
           </StyledWithdrawButton>
+          {withdrawError && <StyledFieldError role="alert">{withdrawError}</StyledFieldError>}
         </StyledBottom>
       </StyledContent>
 
