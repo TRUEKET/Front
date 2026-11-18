@@ -68,6 +68,7 @@ const StyledDescriptionText = styled.p`
 `;
 
 // 판매자가 낸 이의제기 신청 사유·사진·설명을 보여주는 바텀시트
+// 서버가 사유만 줄 때는 사진·설명 부분을 숨김 (photos·description이 없으면)
 export default function DisputeHistorySheet({ dispute, onClose }) {
   return (
     <ScanBottomSheet onClose={onClose} gap={12} background="#fdfdfd" shadow topGap={SHEET_TOP_GAP}>
@@ -75,9 +76,9 @@ export default function DisputeHistorySheet({ dispute, onClose }) {
       <TalkLine />
       <StyledSubTitle>신청 사유</StyledSubTitle>
       <StyledReasonChip>{dispute.reasonLabel}</StyledReasonChip>
-      <TalkLine />
+      {(dispute.photos?.length > 0 || dispute.description) && <TalkLine />}
 
-      {dispute.photos.map((photo, index) => (
+      {(dispute.photos ?? []).map((photo, index) => (
         <Fragment key={index}>
           <PhotoTag photo={index + 1} />
           {photo ? (
@@ -89,10 +90,12 @@ export default function DisputeHistorySheet({ dispute, onClose }) {
         </Fragment>
       ))}
 
-      <StyledDescription>
-        <StyledDescriptionTitle>설명</StyledDescriptionTitle>
-        <StyledDescriptionText>{dispute.description}</StyledDescriptionText>
-      </StyledDescription>
+      {dispute.description && (
+        <StyledDescription>
+          <StyledDescriptionTitle>설명</StyledDescriptionTitle>
+          <StyledDescriptionText>{dispute.description}</StyledDescriptionText>
+        </StyledDescription>
+      )}
     </ScanBottomSheet>
   );
 }

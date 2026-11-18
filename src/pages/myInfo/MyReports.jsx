@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../components/header/BackHeader.jsx";
@@ -82,10 +83,21 @@ const StyledList = styled.div`
   gap: 12px;
 `;
 
-// 내가 한 신고·제보 목록 (최신 순)
+// 내가 한 신고·제보 목록 (최신 순, GET /me/reports)
 export default function MyReports() {
   const navigate = useNavigate();
-  const reports = getMyReports();
+  // 불러오기 전 null (불러오기 실패도 빈 목록으로 보여줌)
+  const [reports, setReports] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getMyReports({ signal: controller.signal })
+      .then(setReports)
+      .catch((error) => {
+        if (error.name !== "AbortError") setReports([]);
+      });
+    return () => controller.abort();
+  }, []);
 
   return (
     <>
@@ -101,10 +113,10 @@ export default function MyReports() {
         <StyledHistory>
           <StyledHistoryHeader>
             <StyledHistoryTitle>신고, 제보 이력</StyledHistoryTitle>
-            <StyledHistoryCount>{reports.length}건 · 최신 순</StyledHistoryCount>
+            {reports && <StyledHistoryCount>{reports.length}건 · 최신 순</StyledHistoryCount>}
           </StyledHistoryHeader>
           <StyledList>
-            {reports.map((report) => (
+            {reports?.map((report) => (
               <MyReportItem
                 key={report.id}
                 report={report}
