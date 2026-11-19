@@ -7,7 +7,6 @@ import ScanConfirmModal from "../../components/scan/ScanConfirmModal.jsx";
 import ReportTypeBadge from "../../components/myInfo/ReportTypeBadge.jsx";
 import { REPORT_STATUS_LABEL } from "../../components/myInfo/reportTypeStyle.js";
 import { TalkBubble, TalkDashedLine, TalkLine } from "../home/scan/ScanTalkParts.jsx";
-import TalkDetailSheet from "../home/scan/TalkDetailSheet.jsx";
 import TalkCard from "../../components/scan/TalkCard.jsx";
 import { StyledFieldError } from "../../components/auth/authStyles.js";
 import DisputeHistorySheet from "./DisputeHistorySheet.jsx";
@@ -248,7 +247,6 @@ const StyledQuoteList = styled.div`
 export default function MyReportDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [isTalkDetailOpen, setIsTalkDetailOpen] = useState(false);
   const [isDisputeOpen, setIsDisputeOpen] = useState(false);
   const [confirmType, setConfirmType] = useState(null);
   const [decideError, setDecideError] = useState("");
@@ -335,11 +333,8 @@ export default function MyReportDetail() {
         )}
 
         {conversations.length > 0 && (
-          <TalkCard
-            conversations={conversations}
-            summary={`사진 ${flaggedPhotoCount}장에서 사기 의심 정황을 찾았어요.`}
-            onMore={() => setIsTalkDetailOpen(true)}
-          />
+          // 판독 캡처 원본은 서버에 저장되지 않아(기능명세) 원본 사진이 나오는 '자세히 보기'는 두지 않음
+          <TalkCard conversations={conversations} summary={`사진 ${flaggedPhotoCount}장에서 사기 의심 정황을 찾았어요.`} />
         )}
 
         {conversations.length === 0 && quotes.length > 0 && (
@@ -386,9 +381,6 @@ export default function MyReportDetail() {
         )}
       </StyledContent>
 
-      {isTalkDetailOpen && (
-        <TalkDetailSheet conversations={conversations} onClose={() => setIsTalkDetailOpen(false)} />
-      )}
       {isDisputeOpen && <DisputeHistorySheet dispute={dispute} onClose={() => setIsDisputeOpen(false)} />}
       {confirmType && (
         <ScanConfirmModal
