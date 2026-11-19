@@ -1,12 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import searchIcon from "../../assets/icons/home_search.svg";
 import ctaArrowIcon from "../../assets/icons/home_cta_arrow.svg";
-
-// 검색창에 번갈아 보여줄 입력 예시 (전화번호 → 계좌 → SNS 계정), 3초마다 다음 예시로 바뀜
-const SEARCH_PLACEHOLDERS = ["010XXXXXXXX", "국민 123-45-6789", "@ticket_yang"];
-const PLACEHOLDER_INTERVAL_MS = 3000;
 
 // 홈 화면 전체 영역: 검색 섹션 + CTA 카드 섹션을 세로로 나열 (헤더 바로 아래 여백 48)
 const StyledHome = styled.div`
@@ -38,7 +34,7 @@ const StyledHeading = styled.div`
 
 // 한 줄 고정
 const StyledTitle = styled.p`
-  margin: 0;
+  rnpmargin: 0;
   font-size: 20px;
   font-weight: 700;
   white-space: nowrap;
@@ -147,16 +143,7 @@ const StyledCtaArrow = styled.img`
 
 export default function Home() {
   const [query, setQuery] = useState("");
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const timer = setInterval(
-      () => setPlaceholderIndex((index) => (index + 1) % SEARCH_PLACEHOLDERS.length),
-      PLACEHOLDER_INTERVAL_MS,
-    );
-    return () => clearInterval(timer);
-  }, []);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -175,7 +162,7 @@ export default function Home() {
           <StyledSearchIcon src={searchIcon} alt="" />
           <StyledSearchInput
             type="text"
-            placeholder={SEARCH_PLACEHOLDERS[placeholderIndex]}
+            placeholder="010XXXXXXXX"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
