@@ -5,7 +5,7 @@ import BackHeader from "../../../components/header/BackHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import RequestProgress from "./RequestProgress.jsx";
 import copyIcon from "../../../assets/icons/trueshot_copy.svg";
-import { copySellerMessage, getSellerMessage, getTrueShotRequest } from "../../../api/trueShot.js";
+import { getSellerMessage, getTrueShotRequest, sendSellerMessage } from "../../../api/trueShot.js";
 
 // 진행 중일 때 판매자 진행 상황을 다시 불러오는 간격(ms)
 const POLL_MS = 5000;
@@ -146,7 +146,7 @@ const StyledCopyButton = styled(MainButton)`
   }
 `;
 
-// 트루샷-구매자(요청 상세): 인증코드, 판매자에게 보낼 메시지·링크 복사, 진행 단계
+// 트루샷-구매자(요청 상세): 인증코드, 판매자에게 보낼 메시지·링크 전송(공유 시트, 없으면 복사), 진행 단계
 // 촬영 대기(진행 중)일 때만 5초마다 다시 불러옴 (완료·실패·시간 만료되거나 화면을 벗어나면 멈춤)
 export default function RequestDetail() {
   const { id } = useParams();
@@ -203,7 +203,7 @@ export default function RequestDetail() {
         <StyledMessageCard>
           <StyledMessageTitle>판매자 송신용 메시지</StyledMessageTitle>
           <StyledMessage>{getSellerMessage()}</StyledMessage>
-          <StyledCopyButton variant="accent" type="button" onClick={() => copySellerMessage(request)}>
+          <StyledCopyButton variant="accent" type="button" onClick={() => sendSellerMessage(request)}>
             <img src={copyIcon} alt="" />
             메시지·링크 전송하기
           </StyledCopyButton>
