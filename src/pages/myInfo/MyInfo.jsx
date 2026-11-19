@@ -37,7 +37,7 @@ const StyledDivider = styled.hr`
 `;
 
 // 내 정보 탭: 비로그인이면 로그인 안내, 로그인이면 계정 정보·신고 리스트·트루샷 리스트 메뉴
-// 내 트루샷 리스트는 디자인이 없어 아직 동작 없음
+// 내 트루샷 리스트는 트루샷 탭(내가 요청한 목록)으로 이동 (기획 노션 기준)
 export default function MyInfo() {
   const navigate = useNavigate();
   const user = useCurrentUser();
@@ -69,7 +69,7 @@ export default function MyInfo() {
       <StyledDivider />
       <MenuRow label="내 계정 정보" onClick={() => navigate("/myinfo/account")} />
       <MenuRow label="내 신고 리스트" onClick={() => navigate("/myinfo/reports")} />
-      <MenuRow label="내 트루샷 리스트" />
+      <MenuRow label="내 트루샷 리스트" onClick={() => navigate("/trueshot")} />
     </StyledMyInfo>
   );
 }
