@@ -4,19 +4,13 @@ import CountdownBadge from "../../../components/trueShot/CountdownBadge.jsx";
 import ResultTitle from "../../../components/trueShot/ResultTitle.jsx";
 import ReasonList from "../../../components/trueShot/ReasonList.jsx";
 
-// 판독 중 화면 (헤더 없이 가운데에 모션 자리 + 안내 문구)
+// 판독 중 화면 (헤더 없이 안내 문구만, 모션 애니메이션은 진행하지 않기로 해서 자리 삭제)
+// 문구 위치는 모션 자리가 있을 때와 같게: 289 + 모션 150 + 간격 14
 const StyledLoading = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
   align-items: center;
-  padding-top: 289px;
-`;
-
-// TODO: 디자이너가 모션 애니메이션 파일을 주면 이 자리에 넣기, 안 주면 이 자리를 지움
-const StyledMotionArea = styled.div`
-  width: 150px;
-  height: 150px;
+  padding-top: 453px;
 `;
 
 const StyledMessage = styled.p`
@@ -78,7 +72,6 @@ export default function SellerJudging({ judge, remainSeconds, onRetry, onNext })
   return (
     <>
       <StyledLoading>
-        <StyledMotionArea aria-hidden="true" />
         <StyledMessage role="status">AI가 사진을 분석 중입니다...</StyledMessage>
       </StyledLoading>
 
