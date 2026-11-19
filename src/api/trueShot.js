@@ -39,6 +39,7 @@ const FAILED_FIRST_DONE = ["SECOND_PHOTO_TIMEOUT", "ANALYSIS_TIMEOUT", "VERIFICA
 const FAILED_SECOND_DONE = ["ANALYSIS_TIMEOUT", "VERIFICATION_FAILED"];
 
 // 진행 단계 4개 (시간 만료는 '링크 제작 완료'만 체크)
+// '인증 완료'는 인증 성공일 때만 체크 (실패에도 켜면 성공처럼 보임)
 const toProgress = ({ phase, status, failureCode }) => {
   const failed = status === "FAILED";
   const expired = failureCode === "REQUEST_TIMEOUT";
@@ -52,7 +53,7 @@ const toProgress = ({ phase, status, failureCode }) => {
       label: "판매자의 두 번째 촬영",
       done: !expired && (failed ? FAILED_SECOND_DONE.includes(failureCode) : reached(phase, "JUDGING")),
     },
-    { label: "인증 완료", done: status === "PASSED" || (failed && !expired) },
+    { label: "인증 완료", done: status === "PASSED" },
   ];
 };
 
