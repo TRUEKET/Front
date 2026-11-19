@@ -4,14 +4,14 @@ import MainButton from "../../../components/common/MainButton.jsx";
 import checkIcon from "../../../assets/icons/dispute_complete_check.svg";
 import { MOCK_DISPUTE_REASONS } from "../../../mock/disputeReason.js";
 
-// line-height:1로 Figma의 lineHeight 100%에 맞춤
+// Figma 글자 행간이 자동(normal)이라 line-height:normal로 맞춤 (24px 제목 → 29px 높이)
 const StyledContent = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
   align-items: center;
   padding: 12px 16px;
-  line-height: 1;
+  line-height: normal;
 `;
 
 const StyledIcon = styled.img`
@@ -58,6 +58,26 @@ const StyledReceiptCard = styled.div`
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
+`;
+
+// 접수 카드 + 아래 안내 문구 묶음 (사이 4px)
+const StyledReceiptGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+`;
+
+// 기타 사유일 때 접수 카드 아래 붙는 10px 안내 문구 (좌우 16px)
+const StyledReceiptNote = styled.p`
+  margin: 0;
+  padding: 0 16px;
+  color: #4e4a57;
+  font-family: "Pretendard", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: normal;
+  text-align: left;
 `;
 
 const StyledReceiptRow = styled.div`
@@ -129,14 +149,22 @@ export default function DisputeComplete() {
             </>
           )}
         </StyledMessage>
-        <StyledReceiptCard>
-          {rows.map(({ label, value }) => (
-            <StyledReceiptRow key={label}>
-              <StyledReceiptLabel>{label}</StyledReceiptLabel>
-              <StyledReceiptValue>{value}</StyledReceiptValue>
-            </StyledReceiptRow>
-          ))}
-        </StyledReceiptCard>
+        <StyledReceiptGroup>
+          <StyledReceiptCard>
+            {rows.map(({ label, value }) => (
+              <StyledReceiptRow key={label}>
+                <StyledReceiptLabel>{label}</StyledReceiptLabel>
+                <StyledReceiptValue>{value}</StyledReceiptValue>
+              </StyledReceiptRow>
+            ))}
+          </StyledReceiptCard>
+          {state?.reason === "etc" && (
+            <StyledReceiptNote>
+              기타 사유는 검토에 시간이 더 소요될 수 있습니다. 자료가 더 필요한 경우 추가 자료 요구를 진행할 수
+              있습니다.
+            </StyledReceiptNote>
+          )}
+        </StyledReceiptGroup>
       </StyledContent>
 
       <StyledBottomAction>

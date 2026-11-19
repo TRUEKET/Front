@@ -57,6 +57,7 @@
 
 body {
   margin: 0;
+  background: var(--bg); /* #root 바깥(넓은 폰 양옆, 주소창 접힐 때 아래)도 같은 회색으로 */
 }
 
 #root {

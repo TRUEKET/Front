@@ -12,13 +12,21 @@ import { createDispute } from "../../../api/dispute.js";
 const MAX_DESCRIPTION = 400;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// line-height:1로 Figma의 lineHeight 100%에 맞춤
+// 업로드 줄 맨 앞 예시 타일의 대화 말풍선 막대 (위치, 크기, 색)
+const EXAMPLE_BARS = [
+  { left: 8.09, top: 6.93, width: 43.911, height: 9.244, color: "#c9c3b8" },
+  { left: 20.8, top: 20.8, width: 52, height: 8.089, color: "#dad0ff" },
+  { left: 8.09, top: 33.51, width: 52, height: 13.867, color: "#e7e3dc" },
+  { left: 27.73, top: 52, width: 45.067, height: 15.022, color: "#dad0ff" },
+];
+
+// Figma 글자 행간이 자동(normal)이라 line-height:normal로 맞춤 (16px 글자 → 19px 높이)
 const StyledContent = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  line-height: 1;
+  line-height: normal;
   text-align: left;
 `;
 
@@ -74,10 +82,11 @@ const StyledEvidenceCard = styled.div`
   border-radius: 20px;
 `;
 
+// 카드 제목 + 안내 문구 ($wide: 기타 이유 카드는 제목과 문구 사이 7px)
 const StyledCardTexts = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: ${({ $wide }) => ($wide ? "7px" : "4px")};
 `;
 
 const StyledCardTitle = styled.p`
@@ -121,6 +130,30 @@ const StyledTiles = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+`;
+
+// 업로드 줄 맨 앞 예시 타일 (대화 캡쳐 모양 그림, 누를 수 없음)
+const StyledExampleTile = styled.div`
+  position: relative;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 80.889px;
+  height: 104px;
+  overflow: hidden;
+  background: #fdfdfd;
+  border: 1.156px solid #ddd8cf;
+  border-radius: 11.556px;
+`;
+
+// 예시 타일 안의 말풍선 막대 하나
+const StyledExampleBar = styled.span`
+  position: absolute;
+  left: ${({ $left }) => $left}px;
+  top: ${({ $top }) => $top}px;
+  width: ${({ $width }) => $width}px;
+  height: ${({ $height }) => $height}px;
+  background: ${({ $color }) => $color};
+  border-radius: 5.778px;
 `;
 
 const StyledThumb = styled.div`
@@ -413,7 +446,7 @@ export default function DisputeEvidence() {
 
   const evidenceCards = config.cards.map(({ id, title, sub, boldAccount, bullets, largeSub, divider }) => (
     <StyledEvidenceCard key={id} $wide={largeSub}>
-      <StyledCardTexts>
+      <StyledCardTexts $wide={largeSub}>
         <StyledCardTitle>{title}</StyledCardTitle>
         <StyledCardSub $large={largeSub}>{renderSub(sub, account, boldAccount)}</StyledCardSub>
         {bullets && (
@@ -426,6 +459,18 @@ export default function DisputeEvidence() {
       </StyledCardTexts>
       {divider && <StyledCardDivider $dashed={divider === "dashed"} />}
       <StyledTiles>
+        <StyledExampleTile aria-hidden="true">
+          {EXAMPLE_BARS.map(({ left, top, width, height, color }) => (
+            <StyledExampleBar
+              key={`${left}-${top}`}
+              $left={left}
+              $top={top}
+              $width={width}
+              $height={height}
+              $color={color}
+            />
+          ))}
+        </StyledExampleTile>
         {(uploads[id] ?? []).map((file) => (
           <StyledThumb key={file.id}>
             <StyledThumbImage src={file.url} alt="" />
