@@ -8,7 +8,7 @@ import MaskEditor from "./MaskEditor.jsx";
 import SellerResult from "./SellerResult.jsx";
 import { StyledSellerPage } from "./sellerStyles.js";
 import useCountdown from "../../../hooks/useCountdown.js";
-import { extractHandsWithin, preloadHandRecognizer, prepareShotImage } from "../../../api/handAnalyze.js";
+import { extractHandsWithin, prepareShotImage } from "../../../api/handAnalyze.js";
 import {
   confirmFirstMask,
   enterSellerSession,
@@ -23,9 +23,6 @@ import { JUDGE_LOADING_MS, SELLER_TIMEOUT_REASONS } from "../../../mock/trueShot
 
 // 촬영 마감이 있는 단계 (남은 시간이 0이 되면 서버 결과를 다시 확인)
 const TIMED_PHASES = ["FIRST_CHECKING", "SECOND_WAITING"];
-
-// 2차 손 인식(MediaPipe)을 미리 받아 둘 단계 (시작 전 안내 화면도 포함)
-const PRELOAD_PHASES = ["WAITING", "FIRST_CHECKING", "FIRST_MASKING", "SECOND_WAITING"];
 
 // 2차 사진을 마감 전에 서버로 보내기 위해 남겨 둘 업로드 시간(ms)
 const UPLOAD_MARGIN_MS = 8000;
@@ -95,13 +92,6 @@ export default function SellerSession() {
       cancelled = true;
     };
   }, [token, handleBlocked]);
-
-  // 2차 손 인식 모델은 크기가 커서(약 23MB) 2차 화면에서 받기 시작하면 1분 안에 못 끝날 수 있음
-  // → 판매자가 링크에 들어와 안내를 보거나 1차를 진행하는 동안 미리 받아 둠
-  const shouldPreload = Boolean(link) || PRELOAD_PHASES.includes(phase);
-  useEffect(() => {
-    if (shouldPreload) preloadHandRecognizer();
-  }, [shouldPreload]);
 
   // 판정 대기 중: 서버가 알려준 간격(기본 2초)마다 결과 조회, 다른 단계가 되면 멈춤
   useEffect(() => {
@@ -204,6 +194,8 @@ export default function SellerSession() {
   };
 
   // 2차 사진: MediaPipe 손 분석과 함께 제출 → 판정 대기
+  // 손 인식 모델(약 23MB)은 미리 받지 않고 사진을 찍은 뒤 여기서 불러옴 (카메라를 열 때 메모리를 덜 써서
+  // 모바일 브라우저가 페이지를 다시 불러오는 일을 줄임, 모델 받는 시간은 판정 대기 로딩 화면에 포함)
   // 손 인식은 마감 8초 전까지만 기다리고(못 끝나면 손 정보 없이), 사진이 1분 안에 서버에 도착하게 함
   const handleSecondShot = async (file) => {
     const prepared = await prepareShotImage(file);
