@@ -22,10 +22,11 @@ const StyledLogo = styled(Link)`
   text-decoration: none;
 `;
 
-// 티켓 아이콘 (40x40)
+// 티켓 아이콘 (보이는 크기 40x40)
 const StyledIcon = styled.img`
   width: 40px;
   height: 40px;
+  margin: -4px -6px;
 `;
 
 // TRUE:KET 글씨를 감싸는 제목 태그 (기본 여백 제거)
@@ -34,16 +35,16 @@ const StyledLogoText = styled.h1`
   line-height: 1;
 `;
 
-// "TRUE:" 부분 (검정색)
+// "TRUE" 부분 (검정색)
 const StyledTrueketspan01 = styled.span`
-  color: #191919;
+  color: #1a1a1a;
   font-size: 28px;
   font-family: "esamanru", sans-serif;
   font-weight: 700;
   word-wrap: break-word;
 `;
 
-// "KET" 부분 (보라색)
+// ":KET" 부분 (콜론까지 보라색)
 const StyledTrueketspan02 = styled.span`
   color: #5434d6;
   font-size: 28px;
@@ -108,8 +109,8 @@ export default function Header() {
       <StyledLogo to="/">
         <StyledIcon src={ticketIcon} alt="TRUE:KET 아이콘" />
         <StyledLogoText>
-          <StyledTrueketspan01>TRUE:</StyledTrueketspan01>
-          <StyledTrueketspan02>KET</StyledTrueketspan02>
+          <StyledTrueketspan01>TRUE</StyledTrueketspan01>
+          <StyledTrueketspan02>:KET</StyledTrueketspan02>
         </StyledLogoText>
       </StyledLogo>
       {/* 로그인 확인 중(user === undefined)에는 비워 둠 (새로고침 시 로그인 버튼이 깜빡이지 않게) */}

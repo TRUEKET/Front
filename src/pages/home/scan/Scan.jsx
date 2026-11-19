@@ -60,6 +60,11 @@ const StyledNote = styled.p`
   line-height: normal;
 `;
 
+// 업로드 아래 개인정보, 장수 안내 문구 (10px)
+const StyledUploadNote = styled(StyledNote)`
+  font-size: 10px;
+`;
+
 const StyledDivider = styled.hr`
   width: 100%;
   margin: 0;
@@ -88,7 +93,7 @@ const StyledMemoHint = styled.div`
   left: 19px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 13px;
   width: 321px;
   font-family: "Pretendard", sans-serif;
   font-size: 12px;
@@ -166,11 +171,11 @@ export default function Scan() {
             <StyledSectionTitle>판매자와 나눈 대화 내용을 넣어주세요.</StyledSectionTitle>
             <StyledUploadGroup>
               <CaptureTiles images={images} onChange={setImages} />
-              <StyledNote>
-                개인정보는 자동으로 가려 판독됩니다
+              <StyledUploadNote>
+                개인정보는 자동으로 가려 판독됩니다.
                 <br />
-                사진은 최대 10장 까지 업로드 가능합니다(장당 10MB 이내)
-              </StyledNote>
+                사진은 최대 10장 까지 업로드 가능합니다.(장당 10MB 이내)
+              </StyledUploadNote>
             </StyledUploadGroup>
           </StyledSection>
 

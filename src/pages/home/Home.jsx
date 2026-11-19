@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import searchIcon from "../../assets/icons/home_search.svg";
 import ctaArrowIcon from "../../assets/icons/home_cta_arrow.svg";
+
+// 검색창에 번갈아 보여줄 입력 예시 (전화번호 → 계좌 → SNS 계정), 3초마다 다음 예시로 바뀜
+const SEARCH_PLACEHOLDERS = ["010XXXXXXXX", "국민 123-45-6789", "@ticket_yang"];
+const PLACEHOLDER_INTERVAL_MS = 3000;
 
 // 홈 화면 전체 영역: 검색 섹션 + CTA 카드 섹션을 세로로 나열 (헤더 바로 아래 여백 48)
 const StyledHome = styled.div`
@@ -12,7 +16,7 @@ const StyledHome = styled.div`
   padding: 48px 16px 16px;
 `;
 
-// 안내 문구 + 전화번호 검색창
+// 안내 문구 + 전화번호, 계좌, SNS 계정 검색창
 const StyledSearchSection = styled.section`
   display: flex;
   flex-direction: column;
@@ -120,6 +124,7 @@ const StyledCtaTexts = styled.div`
   color: #4e4a57;
   text-align: left;
   font-family: "Pretendard", sans-serif;
+  line-height: normal; /* 위에서 물려받은 행간(23.2px)이 적용되면 카드가 높아져서 글자 크기에 맞는 행간으로 맞춤 */
 `;
 
 const StyledCtaTitle = styled.p`
@@ -141,13 +146,22 @@ const StyledCtaArrow = styled.img`
 `;
 
 export default function Home() {
-  const [phone, setPhone] = useState("");
+  const [query, setQuery] = useState("");
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = setInterval(
+      () => setPlaceholderIndex((index) => (index + 1) % SEARCH_PLACEHOLDERS.length),
+      PLACEHOLDER_INTERVAL_MS,
+    );
+    return () => clearInterval(timer);
+  }, []);
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (!phone.trim()) return;
-    navigate(`/search?q=${encodeURIComponent(phone.trim())}`);
+    if (!query.trim()) return;
+    navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   };
 
   return (
@@ -160,10 +174,10 @@ export default function Home() {
         <StyledSearchForm onSubmit={handleSubmit}>
           <StyledSearchIcon src={searchIcon} alt="" />
           <StyledSearchInput
-            type="tel"
-            placeholder="010XXXXXXXX"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            type="text"
+            placeholder={SEARCH_PLACEHOLDERS[placeholderIndex]}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
           />
         </StyledSearchForm>
       </StyledSearchSection>

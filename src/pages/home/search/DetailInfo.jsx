@@ -502,7 +502,14 @@ export default function DetailInfo() {
           type="button"
           onClick={() =>
             navigate("/search/dispute", {
-              state: { ...summary, identifierId: detail.data.identifierId, identifierType: type, identifier: searchedQuery },
+              state: {
+                ...summary,
+                // 이의제기 화면에서 '이미 이의제기된 건' 수를 구할 때 쓰는 전체 신고·제보 수
+                totalReportCount: (fraudCount ?? 0) + (suspicionCount ?? 0),
+                identifierId: detail.data.identifierId,
+                identifierType: type,
+                identifier: searchedQuery,
+              },
             })
           }
         >
