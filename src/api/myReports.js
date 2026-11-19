@@ -62,13 +62,29 @@ const formatDate = (value) => {
   return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}`;
 };
 
+// 식별자 표시 값: 본인 신고는 전체 값(value), 예전 응답이라 없으면 가린 값
+const identifierText = (item) => item.value ?? item.maskedValue ?? "";
+
+// 리스트 대표 식별자 순서: 계좌 → 전화번호 → SNS
+const MAIN_IDENTIFIER_ORDER = ["ACCOUNT", "PHONE", "SNS"];
+
+const toMainIdentifier = (identifiers = []) => {
+  for (const type of MAIN_IDENTIFIER_ORDER) {
+    const found = identifiers.find((item) => item.type === type);
+    if (found) return identifierText(found);
+  }
+  return "";
+};
+
 // 목록·상세 공통 (서버에 없는 비공개 사유는 null → 화면에서 숨김)
-const toReportSummary = ({ reportId, kind, status, createdAt }) => ({
+// account: 리스트 대표 식별자 (계좌가 없으면 전화번호, 그다음 SNS)
+const toReportSummary = ({ reportId, kind, status, createdAt, identifiers }) => ({
   id: String(reportId),
   type: KIND_TYPE[kind] ?? "suspect",
   status: STATUS[status] ?? "posted",
   reason: null,
   date: formatDate(createdAt),
+  account: toMainIdentifier(identifiers),
 });
 
 // 유지·삭제를 결정할 수 있는 이의제기 (없으면 null)
@@ -86,17 +102,18 @@ const toPendingDispute = (disputes = []) => {
 };
 
 // 상세 화면 데이터
-// account: 첫 번째 계좌 마스킹 값, relatedInfo: 전화번호·SNS 식별자
+// account: 첫 번째 계좌 전체 값, relatedInfo: 전화번호·SNS 식별자 (마스킹 없이 value)
 // conversations: 판독 근거 상세 (위험도·행동·이유·실제 사례), 없는 예전 신고는 quotes(근거 문장)만
 const toReportDetail = (report) => {
   const identifiers = report.identifiers ?? [];
+  const account = identifiers.find((item) => item.type === "ACCOUNT");
   return {
     ...toReportSummary(report),
     reportId: report.reportId,
-    account: identifiers.find((item) => item.type === "ACCOUNT")?.maskedValue ?? "",
+    account: account ? identifierText(account) : "",
     relatedInfo: identifiers
       .filter((item) => RELATED_IDENTIFIER[item.type])
-      .map((item) => ({ ...RELATED_IDENTIFIER[item.type], value: item.maskedValue })),
+      .map((item) => ({ ...RELATED_IDENTIFIER[item.type], value: identifierText(item) })),
     conversations: toConversations(report.evidenceDetails),
     quotes: report.evidenceQuotes ?? [],
     dispute: toPendingDispute(report.disputes),

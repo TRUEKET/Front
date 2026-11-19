@@ -6,10 +6,11 @@
 // disputes: 이의제기 알림 (canRespond면 유지·삭제 결정 가능, description·proofImages: 판매자 설명·증빙 사진)
 import proofSample from "../assets/images/trueshot_sample_1.png";
 
+// value: 본인 신고에서만 주는 전체 값 (화면은 value 사용), maskedValue: 호환용 가린 값
 const IDENTIFIERS = [
-  { identifierId: 308, type: "ACCOUNT", maskedValue: "신한 110-22-******" },
-  { identifierId: 309, type: "PHONE", maskedValue: "010-****-1234" },
-  { identifierId: 310, type: "SNS", maskedValue: "@hello1*****" },
+  { identifierId: 308, type: "ACCOUNT", value: "신한 11022123456", maskedValue: "신한 110-22-******" },
+  { identifierId: 309, type: "PHONE", value: "010-5678-1234", maskedValue: "010-****-1234" },
+  { identifierId: 310, type: "SNS", value: "@hello1234", maskedValue: "@hello1*****" },
 ];
 
 const EVIDENCE_QUOTES = ["3자 사기 무서우니까 본명 말고 닉네임으로 입금해주세요", "지금 바로 입금해야 자리 잡아드릴 수 있어요"];
