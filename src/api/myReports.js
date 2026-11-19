@@ -22,6 +22,26 @@ const DISPUTE_REASON_LABEL = { NORMAL: "거래를 정상적으로 마쳤어요",
 // 근거 세기 → 말풍선·칩 색 (판독 결과 화면과 같은 기준: 강함 빨강, 주의 노랑)
 const SEVERITY_LEVEL = { STRONG: "danger", DANGER: "danger", CAUTION: "caution" };
 
+// 판독 기준 A~F → 행동 칩 이름 6가지 (X는 칩 6개에 없는 기준 밖 수상한 요구)
+// 판독 결과 화면(pages/home/scan/ScanResult.jsx의 CRITERIA·CRITERION_LABELS)과 같은 이름
+// TODO: 공통 상수 파일로 옮겨 판독 결과 화면과 함께 쓰기
+const CRITERION_LABELS = {
+  A: "로그인 정보 요구",
+  B: "수상한 송금 요구",
+  C: "확인 회피",
+  D: "판단 재촉",
+  E: "불리한 조건",
+  F: "정보 불일치",
+  X: "기타 수상한 요구",
+};
+
+// 서버 신호 ID(신호 사전 v0.2, 예: S-E1) → 칩 이름 (S- 다음 글자가 기준, 모르는 기준은 X)
+// action(신호 이름 원문, 예: '개인 계좌 선입금 요구')은 칩에 쓰지 않음
+const toBehavior = (signalId = "") => {
+  const criterion = /^S-([A-FX])/.exec(signalId)?.[1];
+  return CRITERION_LABELS[criterion] ?? CRITERION_LABELS.X;
+};
+
 // 판독 근거(evidenceDetails) → 주요 대화 카드 형식 (판독 결과 화면 TalkCard·TalkDetailSheet와 같은 모양)
 // 참고용 신호(informational)는 빼고, 같은 사진·같은 행동은 하나만 (강한 근거 먼저)
 const toConversations = (details = []) => {
@@ -34,7 +54,7 @@ const toConversations = (details = []) => {
         photo: detail.imageIndex,
         text: detail.quote,
         level: SEVERITY_LEVEL[detail.severity] ?? "caution",
-        behavior: detail.action,
+        behavior: toBehavior(detail.signalId),
         reason: detail.reason,
         realCase: realCase ? { summary: realCase.summary, source: realCase.source, url: realCase.url } : null,
       };

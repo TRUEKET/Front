@@ -21,7 +21,7 @@ const EVIDENCE_DETAILS = [
     signalId: "S-B3",
     quote: EVIDENCE_QUOTES[0],
     severity: "CAUTION",
-    action: "수상한 송금 요구",
+    action: "닉네임·타인 명의 입금, 입금 계좌 변경 요구",
     reason: "입금자 확인을 피하려는 말입니다. 문제 발생 시 누가 보냈는지 추적이 어려울 수 있어요.",
     informational: false,
     cases: [
@@ -39,7 +39,7 @@ const EVIDENCE_DETAILS = [
     signalId: "S-D1",
     quote: EVIDENCE_QUOTES[1],
     severity: "STRONG",
-    action: "판단 재촉",
+    action: "시간 압박·다른 구매자 압박·불이익 위협",
     reason: "바로 입금하라고 재촉해 확인할 시간을 주지 않으려는 말입니다.",
     informational: false,
     cases: [],
