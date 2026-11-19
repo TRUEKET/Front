@@ -52,7 +52,7 @@ const loadRecognizer = () => {
   return recognizerPromise;
 };
 
-// 모델을 미리 불러둠 (첫 로드가 몇 초 걸려서 2차 지시 화면에 들어갈 때 호출)
+// 모델을 미리 불러둠 (wasm 약 14.5MB + 모델 약 8.4MB라 모바일에선 수십 초 걸릴 수 있어 판매자가 링크에 들어오면 바로 호출)
 export function preloadHandRecognizer() {
   loadRecognizer().catch(() => {
     // 미리 불러오기 실패는 무시 (분석할 때 다시 시도)
@@ -121,6 +121,26 @@ export async function extractHands(canvas) {
   } catch (error) {
     console.warn("손 인식 실패, hands: []로 진행", error);
     return { imageWidth, imageHeight, hands: [] };
+  }
+}
+
+// 손 인식을 정해진 시간 안에만 기다림 (2차는 1분 안에 서버에 도착해야 해서)
+// 시간 안에 못 끝나면(모델 다운로드가 느린 모바일 등) hands: []로 진행, 판정은 서버가 함
+export async function extractHandsWithin(canvas, timeoutMs) {
+  const empty = { imageWidth: canvas.width, imageHeight: canvas.height, hands: [] };
+  if (timeoutMs <= 0) return empty;
+
+  let timer = null;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(`손 인식이 ${timeoutMs}ms 안에 끝나지 않아 hands: []로 진행`);
+      resolve(empty);
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([extractHands(canvas), timeout]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 

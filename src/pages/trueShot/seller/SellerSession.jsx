@@ -8,7 +8,7 @@ import MaskEditor from "./MaskEditor.jsx";
 import SellerResult from "./SellerResult.jsx";
 import { StyledSellerPage } from "./sellerStyles.js";
 import useCountdown from "../../../hooks/useCountdown.js";
-import { extractHands, prepareShotImage } from "../../../api/handAnalyze.js";
+import { extractHandsWithin, preloadHandRecognizer, prepareShotImage } from "../../../api/handAnalyze.js";
 import {
   confirmFirstMask,
   enterSellerSession,
@@ -23,6 +23,12 @@ import { JUDGE_LOADING_MS, SELLER_TIMEOUT_REASONS } from "../../../mock/trueShot
 
 // 촬영 마감이 있는 단계 (남은 시간이 0이 되면 서버 결과를 다시 확인)
 const TIMED_PHASES = ["FIRST_CHECKING", "SECOND_WAITING"];
+
+// 2차 손 인식(MediaPipe)을 미리 받아 둘 단계 (시작 전 안내 화면도 포함)
+const PRELOAD_PHASES = ["WAITING", "FIRST_CHECKING", "FIRST_MASKING", "SECOND_WAITING"];
+
+// 2차 사진을 마감 전에 서버로 보내기 위해 남겨 둘 업로드 시간(ms)
+const UPLOAD_MARGIN_MS = 8000;
 
 // 판매자 트루샷 (구매자가 보낸 링크 /trueshot/seller/:token 으로 들어옴, 로그인 없음)
 // 진행 상태는 서버가 판매자 브라우저 세션으로 관리 → 들어오거나 새로고침하면 GET /s/{token}/result로 복구
@@ -84,6 +90,13 @@ export default function SellerSession() {
       cancelled = true;
     };
   }, [token, handleBlocked]);
+
+  // 2차 손 인식 모델은 크기가 커서(약 23MB) 2차 화면에서 받기 시작하면 1분 안에 못 끝날 수 있음
+  // → 판매자가 링크에 들어와 안내를 보거나 1차를 진행하는 동안 미리 받아 둠
+  const shouldPreload = Boolean(link) || PRELOAD_PHASES.includes(phase);
+  useEffect(() => {
+    if (shouldPreload) preloadHandRecognizer();
+  }, [shouldPreload]);
 
   // 판정 대기 중: 서버가 알려준 간격(기본 2초)마다 결과 조회, 다른 단계가 되면 멈춤
   useEffect(() => {
@@ -186,11 +199,13 @@ export default function SellerSession() {
   };
 
   // 2차 사진: MediaPipe 손 분석과 함께 제출 → 판정 대기
+  // 손 인식은 마감 8초 전까지만 기다리고(못 끝나면 손 정보 없이), 사진이 1분 안에 서버에 도착하게 함
   const handleSecondShot = async (file) => {
     const prepared = await prepareShotImage(file);
     setShot(prepared);
     try {
-      const analysis = await extractHands(prepared.canvas);
+      const waitMs = session.deadline ? session.deadline - Date.now() - UPLOAD_MARGIN_MS : 0;
+      const analysis = await extractHandsWithin(prepared.canvas, waitMs);
       if (import.meta.env.DEV) console.info("[hand-analyze]", analysis);
       setSession(await submitSecondShot(token, { image: prepared.blob, analysis, forceFail: forceFail(2) }));
     } catch {

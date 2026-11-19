@@ -1,11 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import styled, { css } from "styled-components";
 import MainButton from "../../../components/common/MainButton.jsx";
 import CountdownBadge from "../../../components/trueShot/CountdownBadge.jsx";
 import stepDoneIcon from "../../../assets/icons/trueshot_step_done.svg";
 import guideImage from "../../../assets/icons/trueshot_guide.svg";
 import cameraIcon from "../../../assets/icons/trueshot_camera.svg";
-import { preloadHandRecognizer } from "../../../api/handAnalyze.js";
 import { StyledSellerBottom, StyledSellerContent } from "./sellerStyles.js";
 
 // 회차별 화면 차이 (1차: 인증코드 촬영 / 2차: 무작위 지시 촬영, 2차 제목은 요청에 저장된 지시)
@@ -249,11 +248,6 @@ export default function SellerShot({ round, code, mission, remainSeconds, onShot
   const inputRef = useRef(null);
   const config = ROUND_CONFIG[round];
   const isSecond = round === 2;
-
-  // 2차는 판독 때 손 인식을 하므로 화면에 들어오면 모델을 미리 불러둠
-  useEffect(() => {
-    if (isSecond) preloadHandRecognizer();
-  }, [isSecond]);
 
   // 찍은 원본 파일을 그대로 넘김 (회전·축소는 판독 단계에서 한 번만)
   const handleFile = (e) => {

@@ -117,9 +117,22 @@ export async function getTrueShotRequest(id, options) {
 // 판매자 송신용 메시지 미리보기 문구
 export const getSellerMessage = () => SELLER_MESSAGE;
 
-// 클립보드에 복사할 내용: 안내 문구 + 판매자 링크
-export async function copySellerMessage(request) {
-  await navigator.clipboard.writeText(`${SELLER_MESSAGE}\n${request.sellerLink}`);
+// 판매자에게 보낼 내용(안내 문구 + 판매자 링크) 전송
+// 공유 기능이 있으면(iOS·안드로이드 등) 공유 시트로, 없으면 클립보드에 복사 → "shared" / "copied" / "cancelled"
+export async function sendSellerMessage(request) {
+  const text = `${SELLER_MESSAGE}\n${request.sellerLink}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ text });
+      return "shared";
+    } catch (error) {
+      // 사용자가 공유 시트를 닫음
+      if (error.name === "AbortError") return "cancelled";
+      // 그 외(권한 등)로 공유가 안 되면 복사로 대신
+    }
+  }
+  await navigator.clipboard.writeText(text);
+  return "copied";
 }
 
 // 성공 이유 (인증코드 줄에 요청의 코드를 넣음)
