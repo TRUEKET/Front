@@ -10,15 +10,9 @@ import { MOCK_DISPUTE_EVIDENCE } from "../../../mock/disputeEvidence.js";
 import { createDispute } from "../../../api/dispute.js";
 
 const MAX_DESCRIPTION = 400;
+// 증빙 카드 하나에 올릴 수 있는 사진 수
+const MAX_PHOTOS_PER_CARD = 10;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// 업로드 줄 맨 앞 예시 타일의 대화 말풍선 막대 (위치, 크기, 색)
-const EXAMPLE_BARS = [
-  { left: 8.09, top: 6.93, width: 43.911, height: 9.244, color: "#c9c3b8" },
-  { left: 20.8, top: 20.8, width: 52, height: 8.089, color: "#dad0ff" },
-  { left: 8.09, top: 33.51, width: 52, height: 13.867, color: "#e7e3dc" },
-  { left: 27.73, top: 52, width: 45.067, height: 15.022, color: "#dad0ff" },
-];
 
 // Figma 글자 행간이 자동(normal)이라 line-height:normal로 맞춤 (16px 글자 → 19px 높이)
 const StyledContent = styled.div`
@@ -125,39 +119,38 @@ const StyledCardDivider = styled.hr`
   border-top: 1px ${({ $dashed }) => ($dashed ? "dashed" : "solid")} #dedbe5;
 `;
 
-// 올린 캡쳐 썸네일 + 캡쳐 추가 타일을 가로로 나열
+// 올린 캡쳐 썸네일 + 캡쳐 추가 타일을 한 줄로 나열, 카드 폭을 넘으면 옆으로 밀어서 넘김 (가로 스크롤)
+// 스크롤바는 신고하기 대화 캡처와 같은 모양: 타일과 4px 띄운 9px 흰 트랙 + 그 안에 5px 회색 막대
 const StyledTiles = styled.div`
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
+  overflow-x: auto;
+
+  &::-webkit-scrollbar {
+    height: 13px;
+  }
+
+  &::-webkit-scrollbar-track {
+    border-top: 4px solid transparent;
+    border-radius: 10px;
+    background: #fdfdfd;
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border: solid transparent;
+    border-width: 6px 4px 2px;
+    border-radius: 10px;
+    background: #d9d9d9;
+    background-clip: padding-box;
+  }
 `;
 
-// 업로드 줄 맨 앞 예시 타일 (대화 캡쳐 모양 그림, 누를 수 없음)
-const StyledExampleTile = styled.div`
-  position: relative;
-  flex-shrink: 0;
-  box-sizing: border-box;
-  width: 80.889px;
-  height: 104px;
-  overflow: hidden;
-  background: #fdfdfd;
-  border: 1.156px solid #ddd8cf;
-  border-radius: 11.556px;
-`;
-
-// 예시 타일 안의 말풍선 막대 하나
-const StyledExampleBar = styled.span`
-  position: absolute;
-  left: ${({ $left }) => $left}px;
-  top: ${({ $top }) => $top}px;
-  width: ${({ $width }) => $width}px;
-  height: ${({ $height }) => $height}px;
-  background: ${({ $color }) => $color};
-  border-radius: 5.778px;
-`;
-
+// 올린 캡쳐 썸네일 한 장 (가로 스크롤일 때 줄어들지 않게 고정)
 const StyledThumb = styled.div`
   position: relative;
+  flex-shrink: 0;
   box-sizing: border-box;
   width: 80.889px;
   height: 104px;
@@ -190,9 +183,10 @@ const StyledRemoveButton = styled.button`
   }
 `;
 
-// 점선 테두리의 캡쳐 추가 타일 (누르면 이미지 선택창)
+// 점선 테두리의 캡쳐 추가 타일 (누르면 이미지 선택창, 가로 스크롤일 때 줄어들지 않게 고정)
 const StyledAddTile = styled.label`
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
   gap: 13.867px;
   align-items: center;
@@ -216,6 +210,15 @@ const StyledAddTile = styled.label`
   img {
     display: block;
   }
+`;
+
+// 사진 타일 아래 개인정보, 장수 안내 문구 (10px, 판독하기 화면과 같은 모양)
+const StyledUploadNote = styled.p`
+  margin: 0;
+  color: #4e4a57;
+  font-family: "Pretendard", sans-serif;
+  font-size: 10px;
+  font-weight: 500;
 `;
 
 const StyledField = styled.div`
@@ -377,8 +380,13 @@ export default function DisputeEvidence() {
     []
   );
 
+  // 남은 칸(최대 10장)만큼만 추가
   const addFiles = (cardId, fileList) => {
-    const added = [...fileList].map((file) => ({ id: crypto.randomUUID(), url: URL.createObjectURL(file), file }));
+    const room = MAX_PHOTOS_PER_CARD - (uploads[cardId]?.length ?? 0);
+    const added = [...fileList]
+      .slice(0, room)
+      .map((file) => ({ id: crypto.randomUUID(), url: URL.createObjectURL(file), file }));
+    if (added.length === 0) return;
     setUploads((prev) => ({ ...prev, [cardId]: [...(prev[cardId] ?? []), ...added] }));
   };
 
@@ -410,7 +418,7 @@ export default function DisputeEvidence() {
         reason,
         description: description.trim(),
         sellerEmail: email.trim(),
-        evidence: Object.fromEntries(config.cards.map(({ id }) => [id, uploads[id][0].file])),
+        evidence: Object.fromEntries(config.cards.map(({ id }) => [id, uploads[id].map(({ file }) => file)])),
       });
       navigate("/search/dispute/complete", {
         state: {
@@ -459,18 +467,6 @@ export default function DisputeEvidence() {
       </StyledCardTexts>
       {divider && <StyledCardDivider $dashed={divider === "dashed"} />}
       <StyledTiles>
-        <StyledExampleTile aria-hidden="true">
-          {EXAMPLE_BARS.map(({ left, top, width, height, color }) => (
-            <StyledExampleBar
-              key={`${left}-${top}`}
-              $left={left}
-              $top={top}
-              $width={width}
-              $height={height}
-              $color={color}
-            />
-          ))}
-        </StyledExampleTile>
         {(uploads[id] ?? []).map((file) => (
           <StyledThumb key={file.id}>
             <StyledThumbImage src={file.url} alt="" />
@@ -479,12 +475,13 @@ export default function DisputeEvidence() {
             </StyledRemoveButton>
           </StyledThumb>
         ))}
-        {/* 카드당 1장만 받아서 올리면 추가 타일을 숨김 (서버는 PNG, JPEG만 받음) */}
-        {(uploads[id]?.length ?? 0) === 0 && (
+        {/* 올린 사진이 추가 타일 자리에 들어가고 추가 타일은 오른쪽으로 밀림, 10장이 차면 숨김 (서버는 PNG, JPEG만 받음) */}
+        {(uploads[id]?.length ?? 0) < MAX_PHOTOS_PER_CARD && (
           <StyledAddTile>
             <input
               type="file"
               accept="image/png,image/jpeg"
+              multiple
               onChange={(e) => {
                 addFiles(id, e.target.files);
                 e.target.value = "";
@@ -495,6 +492,11 @@ export default function DisputeEvidence() {
           </StyledAddTile>
         )}
       </StyledTiles>
+      <StyledUploadNote>
+        개인정보는 자동으로 가려 판독됩니다.
+        <br />
+        사진은 최대 10장 까지 업로드 가능합니다.(장당 5MB 이내)
+      </StyledUploadNote>
     </StyledEvidenceCard>
   ));
 

@@ -13,11 +13,12 @@ const STAGE_STATUS = {
 export const toStageStatus = (stage) => STAGE_STATUS[stage] ?? "safe";
 
 // 신고 이력 박스 제목 (판독 응답에는 식별자별 신고 인원이 없어 단계로만 안내)
+// 박스 제목 칸이 한 줄 약 205px이라 넘지 않는 길이로 맞춤
 export const getReportTitle = ({ reportStage, lookupWarning }) => {
   if (reportStage === "DANGER") return "피해 신고 이력이 있어요";
   if (reportStage === "SUSPECT") return "의심 제보 이력이 있어요";
   if (lookupWarning) return "신고 이력을 확인하지 못했어요";
-  return "피해 신고·의심 제보 이력이 없어요";
+  return "피해 신고·의심 제보 이력 없음";
 };
 
 // 가린 식별자 목록에서 종류별 첫 값 (type: ACCOUNT, PHONE, SNS)
