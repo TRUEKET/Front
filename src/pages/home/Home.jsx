@@ -34,7 +34,7 @@ const StyledHeading = styled.div`
 
 // 한 줄 고정
 const StyledTitle = styled.p`
-  rnpmargin: 0;
+  margin: 0;
   font-size: 20px;
   font-weight: 700;
   white-space: nowrap;
