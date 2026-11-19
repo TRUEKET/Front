@@ -147,7 +147,7 @@ const StyledCopyButton = styled(MainButton)`
 `;
 
 // 트루샷-구매자(요청 상세): 인증코드, 판매자에게 보낼 메시지·링크 전송(공유 시트, 없으면 복사), 진행 단계
-// 촬영 대기(진행 중)일 때만 5초마다 다시 불러옴 (완료·실패·시간 만료되거나 화면을 벗어나면 멈춤)
+// 촬영 대기(진행 중)일 때만 5초마다 다시 불러옴 (완료·실패·시간 만료되면 결과 화면으로, 화면을 벗어나면 멈춤)
 export default function RequestDetail() {
   const { id } = useParams();
   // 불러오기 전 undefined, 없는 요청(404 등)이면 null
@@ -179,6 +179,9 @@ export default function RequestDetail() {
   if (request === undefined) return <BackHeader label="뒤로가기" />;
   // 없는 요청이면 트루샷 메인으로
   if (!request) return <Navigate to="/trueshot" replace />;
+  // 촬영 대기가 끝났으면(성공·실패·시간 만료) 결과 화면으로 (목록에서 누를 때와 같은 규칙)
+  // 상세를 켜 둔 채 판정이 끝나도 진행 단계에 머물지 않고 인증 성공·실패를 바로 보여줌
+  if (request.status !== "pending") return <Navigate to={`/trueshot/requests/${id}/result`} replace />;
 
   return (
     <>
