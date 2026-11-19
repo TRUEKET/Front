@@ -44,20 +44,22 @@ const StyledCountChip = styled(Button)`
 `;
 
 // 판독결과의 피해 신고·의심 제보 박스를 누르면 계좌, 전화번호별 이력을 보여주는 바텀시트
+// 건수가 없으면(reportCount, suspectCount 없음) 0건으로 표시
+// 가린 값은 서로 같을 수 있어서(예: ***1111) 순서를 key에 같이 씀
 export default function ReportHistorySheet({ history, onClose }) {
   return (
     <ScanBottomSheet onClose={onClose}>
       <StyledTitle>피해 신고·의심 제보 이력</StyledTitle>
       <StyledHistoryBox>
-        {history.map(({ target, reportCount, suspectCount }) => (
-          <StyledHistoryItem key={target}>
+        {history.map(({ target, reportCount, suspectCount }, index) => (
+          <StyledHistoryItem key={`${index}-${target}`}>
             <StyledTarget>{target}</StyledTarget>
             <StyledCounts>
               <StyledCountChip forwardedAs="span" variant="disabled">
-                피해 신고 {reportCount}건
+                피해 신고 {reportCount ?? 0}건
               </StyledCountChip>
               <StyledCountChip forwardedAs="span" variant="disabled">
-                의심 제보 {suspectCount}건
+                의심 제보 {suspectCount ?? 0}건
               </StyledCountChip>
             </StyledCounts>
           </StyledHistoryItem>

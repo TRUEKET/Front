@@ -44,6 +44,7 @@ const StyledFooter = styled.footer`
 const StyledNav = styled.nav`
   display: flex;
   align-items: center;
+  justify-content: space-between;
   width: 320px;
   height: 70px;
   padding: 0 5px;
@@ -53,21 +54,26 @@ const StyledNav = styled.nav`
   box-shadow: 0 1px 5px rgba(23, 21, 28, 0.2);
 `;
 
-// 탭 하나: 아이콘 위, 글씨 아래. 현재 페이지면 연보라 배경이 깔림
+// 탭 하나: 아이콘 위, 글씨 아래. 현재 페이지면 연보라 배경(80x60)이 깔림
+// 배경 폭 80px 4개(320)가 안쪽 폭 310px에 들어가도록 탭끼리 10/3px씩 겹쳐서, 탭 가운데를 Figma 위치(45, 122, 198.5, 275.5)에 맞춤
 const StyledTab = styled(Link)`
-  flex: 1;
+  flex: 0 0 80px;
   height: 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
   border-radius: 90px;
   text-decoration: none;
   color: #4e4a57;
   font-size: 12px;
   font-family: "esamanru", sans-serif;
   font-weight: 500;
+  line-height: normal; /* 위에서 물려받은 행간(23.2px)이면 아이콘과 글씨 사이가 벌어져서 글자 크기에 맞는 행간으로 맞춤 */
+
+  & + & {
+    margin-left: calc(-10px / 3);
+  }
 
   &.active {
     background: #e4deff;
@@ -77,6 +83,14 @@ const StyledTab = styled(Link)`
   &:not(.active):hover {
     background: #a9a4b2;
   }
+`;
+
+// 아이콘 자리 (높이 29): 27px 아이콘은 위에 붙여 아래 2px이 글씨와의 간격이 되고, 29px 카메라 아이콘은 꽉 차서 글씨에 바로 붙음
+const StyledIconBox = styled.span`
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  height: 29px;
 `;
 
 // 아이콘 (SVG 원본 크기 그대로 사용)
@@ -95,7 +109,9 @@ export default function Footer() {
           const active = isTabActive(pathname, matchPrefixes);
           return (
             <StyledTab key={to} to={to} className={active ? "active" : undefined}>
-              <StyledIcon src={active ? iconActive : icon} alt="" />
+              <StyledIconBox>
+                <StyledIcon src={active ? iconActive : icon} alt="" />
+              </StyledIconBox>
               <span>{label}</span>
             </StyledTab>
           );

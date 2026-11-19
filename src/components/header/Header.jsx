@@ -6,11 +6,13 @@ import personBadgeIcon from "../../assets/icons/header_person_badge.svg";
 import MyInfoPopup from "./MyInfoPopup.jsx";
 import useCurrentUser from "../../hooks/useCurrentUser.js";
 
-// 헤더 전체 영역: 로고 블럭은 왼쪽 끝, 로그인 버튼은 오른쪽 끝에 붙임
+// 헤더 전체 영역: 위 14px 아래 높이 56px 한 블럭 안에서 로고 블럭(왼쪽)과 로그인 버튼(오른쪽)을 세로 가운데로 맞춤
 const StyledHeader = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-sizing: border-box;
+  height: 70px; /* 위 여백 14 + 헤더 블럭 56 */
   padding: 14px 16px 0; /* 위 14px, 양옆 16px */
 `;
 
@@ -22,17 +24,19 @@ const StyledLogo = styled(Link)`
   text-decoration: none;
 `;
 
-// 티켓 아이콘 (보이는 크기 40x40)
+// 티켓 아이콘 (보이는 크기 40x39)
 const StyledIcon = styled.img`
+  display: block;
   width: 40px;
   height: 40px;
-  margin: -4px -6px;
+  margin: -2px -4px -6px;
 `;
 
-// TRUE:KET 글씨를 감싸는 제목 태그 (기본 여백 제거)
+// TRUE:KET 글씨를 감싸는 제목 태그 (기본 여백 제거, 전역 h1 크기 대신 28px, Figma 글자 박스 높이 29px)
 const StyledLogoText = styled.h1`
   margin: 0;
-  line-height: 1;
+  font-size: 28px;
+  line-height: 29px;
 `;
 
 // "TRUE" 부분 (검정색)

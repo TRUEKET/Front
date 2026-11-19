@@ -12,9 +12,12 @@ import {
   sendAnalysisFeedback,
   toStageStatus,
 } from "../../../api/analyze.js";
+import { getCurrentUser, loadCurrentUser } from "../../../api/auth.js";
 import ScanConfirmModal from "../../../components/scan/ScanConfirmModal.jsx";
 import AiPolicySheet from "./AiPolicySheet.jsx";
 import TalkDetailSheet from "./TalkDetailSheet.jsx";
+import OriginalPhotoSheet from "./OriginalPhotoSheet.jsx";
+import ReportHistorySheet from "../../../components/scan/ReportHistorySheet.jsx";
 import { BehaviorChip } from "./ScanTalkParts.jsx";
 import TalkCard from "../../../components/scan/TalkCard.jsx";
 import safeCheckIcon from "../../../assets/icons/result_safe_check.svg";
@@ -120,6 +123,10 @@ const toScanResult = (response, photoUrls) => {
     phone: findIdentifier(identifiers, "PHONE"),
     sns: findIdentifier(identifiers, "SNS"),
     accountCount: countAccounts(identifiers),
+    // 신고 이력 시트: 대화에서 찾은 계좌, 전화번호, SNS (판독 응답에 식별자별 인원이 없어 건수는 비워 둠)
+    reportHistory: identifiers.length > 0
+      ? identifiers.map(({ value }) => ({ target: value }))
+      : [{ target: "계좌 정보 없음" }, { target: "전화번호 정보 없음" }],
     behaviors: CRITERIA.map(({ key, label }) => ({
       label,
       level: toStageStatus(assessment.chat.criteria?.[key]),
@@ -432,6 +439,8 @@ export default function ScanResult() {
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [isPolicyOpen, setIsPolicyOpen] = useState(false);
   const [isTalkDetailOpen, setIsTalkDetailOpen] = useState(false);
+  const [isOriginalOpen, setIsOriginalOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // 원본 사진 보기용 로컬 미리보기 주소 (올린 순서 그대로)
   const photoUrls = useMemo(() => (state?.captures ?? []).map((file) => URL.createObjectURL(file)), [state]);
@@ -469,19 +478,26 @@ export default function ScanResult() {
 
   // 판독 결과에서 확인된 거래 정보를 그대로 넘겨 판독 기반 신고 화면으로 이동
   // (신고 등록에 판독 결과가 필요해서 이 경우는 서버의 판독 결과를 지우지 않음)
-  const goToReport = () => {
+  // 비로그인이면 로그인 화면으로 보내고, 로그인·회원가입을 마치면 같은 신고 정보로 신고 화면에 이어서 들어감
+  // (같은 브라우저에서 판독 후 로그인해도 서버의 판독 결과는 그대로 유지됨)
+  const goToReport = async () => {
+    const reportState = {
+      analyzeId,
+      showSuspicionReport: result.showSuspicionReport,
+      accountCount: result.accountCount,
+      tradeType: result.tradeType,
+      account: result.account,
+      phone: result.phone,
+      sns: result.sns,
+    };
     keepAnalysisRef.current = true;
-    navigate("/scan/report", {
-      state: {
-        analyzeId,
-        showSuspicionReport: result.showSuspicionReport,
-        accountCount: result.accountCount,
-        tradeType: result.tradeType,
-        account: result.account,
-        phone: result.phone,
-        sns: result.sns,
-      },
-    });
+    // 로그인 확인이 아직 안 끝났으면 끝날 때까지 기다림
+    await loadCurrentUser();
+    if (!getCurrentUser()) {
+      navigate("/auth", { state: { from: "/scan/report", fromState: reportState } });
+      return;
+    }
+    navigate("/scan/report", { state: reportState });
   };
 
   // 헤더의 뒤로 가기 버튼 클릭을 먼저 가로채서, 바로 이동하지 않고 확인창을 띄움
@@ -536,8 +552,16 @@ export default function ScanResult() {
           </StyledHeadlineGroup>
         </StyledHero>
 
-        {/* TODO: 판독 응답에 식별자별 신고 인원이 생기면 이력 횟수와 신고 이력 시트(ReportHistorySheet) 다시 연결 */}
-        <ScanBox status={result.reportStatus} title={result.reportTitle} account={result.account} phone={result.phone} />
+        {/* TODO: 판독 응답에 식별자별 신고 인원이 생기면 제목 이력 횟수와 시트 건수 채우기 */}
+        {/* Figma처럼 제목 아래 계좌, 전화번호 두 줄을 항상 보여주고, 대화에서 못 찾은 값은 안내 문구로 채움 */}
+        {/* 누르면 계좌, 전화번호별 신고 이력 시트를 띄움 */}
+        <ScanBox
+          status={result.reportStatus}
+          title={result.reportTitle}
+          account={result.account || "계좌 정보 없음"}
+          phone={result.phone || "전화번호 정보 없음"}
+          onClick={() => setIsHistoryOpen(true)}
+        />
 
         <StyledCard>
           <StyledCardHeader>
@@ -572,8 +596,8 @@ export default function ScanResult() {
           summarySize={hasFlags ? 10 : 12}
           onMore={hasFlags ? () => setIsTalkDetailOpen(true) : undefined}
         >
-          <StyledOriginalButton variant="disabled" type="button">
-            원본 사진 보기 ({result.photoCount}장)
+          <StyledOriginalButton variant="disabled" type="button" onClick={() => setIsOriginalOpen(true)}>
+            원본 사진 보기 ({photoUrls.length}장)
           </StyledOriginalButton>
         </TalkCard>
 
@@ -647,6 +671,8 @@ export default function ScanResult() {
       {isTalkDetailOpen && (
         <TalkDetailSheet conversations={result.conversations} onClose={() => setIsTalkDetailOpen(false)} />
       )}
+      {isOriginalOpen && <OriginalPhotoSheet photoUrls={photoUrls} onClose={() => setIsOriginalOpen(false)} />}
+      {isHistoryOpen && <ReportHistorySheet history={result.reportHistory} onClose={() => setIsHistoryOpen(false)} />}
     </>
   );
 }
