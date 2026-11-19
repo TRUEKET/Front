@@ -72,7 +72,37 @@ const readImage = async (file) => {
   }
 };
 
-// 촬영 파일 → EXIF 회전 반영 + 긴 쪽 1000px 캔버스
+// APP1 구간이 EXIF인지 ("Exif\0\0"로 시작)
+const EXIF_HEADER = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00];
+const isExifSegment = (bytes, offset, length) =>
+  bytes[offset + 1] === 0xe1 && length >= 8 && EXIF_HEADER.every((value, index) => bytes[offset + 4 + index] === value);
+
+// JPEG에서 EXIF(APP1 "Exif") 구간만 뺌 (사진 데이터·다른 구간은 그대로, EXIF가 없으면 받은 Blob 그대로)
+// Safari(WebKit)는 canvas.toBlob으로 만든 JPEG에도 EXIF를 새로 붙이는데(Chrome은 안 붙임),
+// 백엔드는 EXIF가 남은 2차 사진을 전부 400으로 거절함 (회전은 캔버스에 이미 반영돼 있어 빼도 됨)
+export async function removeJpegExif(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return blob;
+
+  const parts = [bytes.subarray(0, 2)];
+  let offset = 2;
+  let removed = false;
+  // 사진 데이터 시작(SOS 0xDA) 전까지의 머리 구간만 확인
+  while (offset + 4 <= bytes.length && bytes[offset] === 0xff) {
+    const marker = bytes[offset + 1];
+    if (marker === 0xda || marker === 0xd9) break;
+    const length = (bytes[offset + 2] << 8) | bytes[offset + 3];
+    const end = offset + 2 + length;
+    if (isExifSegment(bytes, offset, length)) removed = true;
+    else parts.push(bytes.subarray(offset, end));
+    offset = end;
+  }
+  if (!removed) return blob;
+  parts.push(bytes.subarray(offset));
+  return new Blob(parts, { type: "image/jpeg" });
+}
+
+// 촬영 파일 → EXIF 회전 반영 + 긴 쪽 1000px 캔버스 → EXIF 없는 JPEG
 // 이 이미지 하나로 손 분석·전송·가리기를 모두 함 (좌표 기준이 같도록)
 export async function prepareShotImage(file) {
   const source = await readImage(file);
@@ -83,7 +113,8 @@ export async function prepareShotImage(file) {
   canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
   source.close?.();
 
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
+  const encoded = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
+  const blob = await removeJpegExif(encoded);
   return { canvas, blob, dataUrl: canvas.toDataURL("image/jpeg", JPEG_QUALITY) };
 }
 
