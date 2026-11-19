@@ -5,7 +5,7 @@ import searchIcon from "../../assets/icons/home_search.svg";
 import ctaArrowIcon from "../../assets/icons/home_cta_arrow.svg";
 
 // 검색창에 번갈아 보여줄 입력 예시 (전화번호 → 계좌 → SNS 계정), 3초마다 다음 예시로 바뀜
-const SEARCH_PLACEHOLDERS = ["010XXXXXXXX", "국민 123456789", "@ticket_yang"];
+const SEARCH_PLACEHOLDERS = ["01012345678", "국민 123456789", "@ticket_yang"];
 const PLACEHOLDER_INTERVAL_MS = 3000;
 
 // 홈 화면 전체 영역: 검색 섹션 + CTA 카드 섹션을 세로로 나열 (헤더 바로 아래 여백 48)
