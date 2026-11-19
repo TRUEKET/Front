@@ -27,7 +27,8 @@ const MAX_IMAGE_SIZE = 1000;
 const JPEG_QUALITY = 0.8;
 
 // 손 인식기는 한 번만 만들어 재사용 (실패하면 다음에 다시 시도)
-// 라이브러리는 필요할 때만 불러와서 다른 화면 번들 크기에 영향 없게 함
+// 라이브러리·모델(wasm 약 14.5MB + 모델 약 8.4MB)은 2차 사진을 분석할 때 처음 불러옴
+// (미리 받아 두면 카메라를 열 때 메모리가 부족해 모바일 브라우저가 페이지를 다시 불러올 수 있음)
 let recognizerPromise = null;
 
 const createRecognizer = async () => {
@@ -51,13 +52,6 @@ const loadRecognizer = () => {
   }
   return recognizerPromise;
 };
-
-// 모델을 미리 불러둠 (wasm 약 14.5MB + 모델 약 8.4MB라 모바일에선 수십 초 걸릴 수 있어 판매자가 링크에 들어오면 바로 호출)
-export function preloadHandRecognizer() {
-  loadRecognizer().catch(() => {
-    // 미리 불러오기 실패는 무시 (분석할 때 다시 시도)
-  });
-}
 
 // ---------- 이미지 준비 ----------
 
