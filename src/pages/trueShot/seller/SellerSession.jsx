@@ -30,6 +30,9 @@ const PRELOAD_PHASES = ["WAITING", "FIRST_CHECKING", "FIRST_MASKING", "SECOND_WA
 // 2차 사진을 마감 전에 서버로 보내기 위해 남겨 둘 업로드 시간(ms)
 const UPLOAD_MARGIN_MS = 8000;
 
+// 2차 사진 제출 실패인데 서버 안내 문구가 없을 때
+const SECOND_SUBMIT_ERROR = "사진을 보내지 못했어요. 다시 찍어 주세요.";
+
 // 판매자 트루샷 (구매자가 보낸 링크 /trueshot/seller/:token 으로 들어옴, 로그인 없음)
 // 진행 상태는 서버가 판매자 브라우저 세션으로 관리 → 들어오거나 새로고침하면 GET /s/{token}/result로 복구
 // 화면은 서버 phase로 결정: FIRST_CHECKING 1차 촬영 / FIRST_MASKING 1차 가리기 / SECOND_WAITING 2차 촬영
@@ -53,6 +56,8 @@ export default function SellerSession() {
   // 가리기 화면에 띄울 사진 주소 (1차는 자동 가림 요청 후, 2차는 '개인정보 가리기'를 누르면)
   const [maskPhoto, setMaskPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
+  // 2차 사진을 서버가 받지 못했을 때 보여줄 이유 (단계가 그대로 SECOND_WAITING이라 마감 전이면 다시 찍을 수 있음)
+  const [secondError, setSecondError] = useState(null);
   const maskRequestedRef = useRef(false);
 
   const phase = session?.phase;
@@ -202,17 +207,28 @@ export default function SellerSession() {
   // 손 인식은 마감 8초 전까지만 기다리고(못 끝나면 손 정보 없이), 사진이 1분 안에 서버에 도착하게 함
   const handleSecondShot = async (file) => {
     const prepared = await prepareShotImage(file);
+    setSecondError(null);
     setShot(prepared);
     try {
       const waitMs = session.deadline ? session.deadline - Date.now() - UPLOAD_MARGIN_MS : 0;
       const analysis = await extractHandsWithin(prepared.canvas, waitMs);
       if (import.meta.env.DEV) console.info("[hand-analyze]", analysis);
       setSession(await submitSecondShot(token, { image: prepared.blob, analysis, forceFail: forceFail(2) }));
-    } catch {
+    } catch (error) {
+      // 서버가 사진을 받지 못한 경우(400·403·503·네트워크 오류 등)는 단계가 SECOND_WAITING 그대로
+      // → 안내 없이 촬영 화면으로 돌아가지 않도록 이유를 보여줌 (접수됐거나 시간 초과면 다시 조회한 단계 화면이 우선)
+      console.warn("[trueshot] 2차 사진 제출 실패", error.status, error.message);
+      setSecondError([{ passed: false, text: error.message || SECOND_SUBMIT_ERROR }]);
       refresh();
     } finally {
       setShot(null);
     }
+  };
+
+  // 2차 제출 실패 모달에서 다시 찍기 (타이머는 서버 마감 그대로)
+  const handleSecondRetry = () => {
+    setSecondError(null);
+    refresh();
   };
 
   // 2차 추가 가림 + 사진 공유 (시작할 때 받은 전달 동의로 자동 공유)
@@ -243,6 +259,18 @@ export default function SellerSession() {
     // 2차 사진 제출 중·판정 대기
     if (phase === "JUDGING" || (phase === "SECOND_WAITING" && shot)) return <SellerJudging judge={null} />;
 
+    // 2차 사진을 서버가 받지 못함 → 실패 이유 + 다시 찍기
+    if (phase === "SECOND_WAITING" && secondError) {
+      return (
+        <SellerJudging
+          judge={{ passed: false, reasons: secondError }}
+          remainSeconds={remainSeconds}
+          onRetry={handleSecondRetry}
+          failTitle="2차 사진을 보내지 못했습니다."
+        />
+      );
+    }
+
     // 1차 사진 판독 중·결과 모달 (통과 직후엔 서버 단계가 이미 FIRST_MASKING)
     if (shot || judge) {
       return (
@@ -267,13 +295,14 @@ export default function SellerSession() {
     );
   };
 
-  // 판독·판정 대기 로딩과 1차 결과 모달에는 헤더가 없음
+  // 판독·판정 대기 로딩과 1차 결과 모달, 2차 제출 실패 모달에는 헤더가 없음
   const isLoading =
     !blocked &&
     session &&
     (phase === "JUDGING" || (phase === "SECOND_WAITING" && shot) || (phase === "FIRST_MASKING" && !maskPhoto && !judge));
   const isFirstModal = Boolean(shot || judge) && phase !== "SECOND_WAITING";
-  const showHeader = (session || link || blocked) && !isLoading && !isFirstModal;
+  const isSecondErrorModal = !blocked && phase === "SECOND_WAITING" && Boolean(secondError);
+  const showHeader = (session || link || blocked) && !isLoading && !isFirstModal && !isSecondErrorModal;
 
   return (
     <StyledSellerPage>

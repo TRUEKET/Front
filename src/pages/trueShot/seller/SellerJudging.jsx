@@ -68,9 +68,10 @@ const StyledReasonTitle = styled.p`
   font-weight: 600;
 `;
 
-// 1차 판독 중 화면 + 결과 모달
-// judge: 판독 결과 (null이면 판독 중), remainSeconds: 1차 남은 시간 (실패 모달에서 계속 줄어듦)
-export default function SellerJudging({ judge, remainSeconds, onRetry, onNext }) {
+// 1차 판독 중 화면 + 결과 모달 (2차 사진을 서버가 받지 못했을 때도 같은 실패 모달)
+// judge: 판독 결과 (null이면 판독 중), remainSeconds: 현재 단계 남은 시간 (실패 모달에서 계속 줄어듦)
+// failTitle: 실패 모달 제목 (기본은 1차 인증 실패)
+export default function SellerJudging({ judge, remainSeconds, onRetry, onNext, failTitle = "1차 인증에 실패했습니다." }) {
   return (
     <>
       <StyledLoading>
@@ -93,7 +94,7 @@ export default function SellerJudging({ judge, remainSeconds, onRetry, onNext })
             ) : (
               <>
                 <ResultTitle color="#ca2317" barHeight={48}>
-                  1차 인증에 실패했습니다.
+                  {failTitle}
                 </ResultTitle>
                 <StyledFailBody>
                   <CountdownBadge seconds={remainSeconds} />
