@@ -22,6 +22,26 @@ const DISPUTE_REASON_LABEL = { NORMAL: "거래를 정상적으로 마쳤어요",
 // 근거 세기 → 말풍선·칩 색 (판독 결과 화면과 같은 기준: 강함 빨강, 주의 노랑)
 const SEVERITY_LEVEL = { STRONG: "danger", DANGER: "danger", CAUTION: "caution" };
 
+// 판독 기준 A~F → 행동 칩 이름 6가지 (X는 칩 6개에 없는 기준 밖 수상한 요구)
+// 판독 결과 화면(pages/home/scan/ScanResult.jsx의 CRITERIA·CRITERION_LABELS)과 같은 이름
+// TODO: 공통 상수 파일로 옮겨 판독 결과 화면과 함께 쓰기
+const CRITERION_LABELS = {
+  A: "로그인 정보 요구",
+  B: "수상한 송금 요구",
+  C: "확인 회피",
+  D: "판단 재촉",
+  E: "불리한 조건",
+  F: "정보 불일치",
+  X: "기타 수상한 요구",
+};
+
+// 서버 신호 ID(신호 사전 v0.2, 예: S-E1) → 칩 이름 (S- 다음 글자가 기준, 모르는 기준은 X)
+// action(신호 이름 원문, 예: '개인 계좌 선입금 요구')은 칩에 쓰지 않음
+const toBehavior = (signalId = "") => {
+  const criterion = /^S-([A-FX])/.exec(signalId)?.[1];
+  return CRITERION_LABELS[criterion] ?? CRITERION_LABELS.X;
+};
+
 // 판독 근거(evidenceDetails) → 주요 대화 카드 형식 (판독 결과 화면 TalkCard·TalkDetailSheet와 같은 모양)
 // 참고용 신호(informational)는 빼고, 같은 사진·같은 행동은 하나만 (강한 근거 먼저)
 const toConversations = (details = []) => {
@@ -34,7 +54,7 @@ const toConversations = (details = []) => {
         photo: detail.imageIndex,
         text: detail.quote,
         level: SEVERITY_LEVEL[detail.severity] ?? "caution",
-        behavior: detail.action,
+        behavior: toBehavior(detail.signalId),
         reason: detail.reason,
         realCase: realCase ? { summary: realCase.summary, source: realCase.source, url: realCase.url } : null,
       };
@@ -62,13 +82,29 @@ const formatDate = (value) => {
   return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}`;
 };
 
+// 식별자 표시 값: 본인 신고는 전체 값(value), 예전 응답이라 없으면 가린 값
+const identifierText = (item) => item.value ?? item.maskedValue ?? "";
+
+// 리스트 대표 식별자 순서: 계좌 → 전화번호 → SNS
+const MAIN_IDENTIFIER_ORDER = ["ACCOUNT", "PHONE", "SNS"];
+
+const toMainIdentifier = (identifiers = []) => {
+  for (const type of MAIN_IDENTIFIER_ORDER) {
+    const found = identifiers.find((item) => item.type === type);
+    if (found) return identifierText(found);
+  }
+  return "";
+};
+
 // 목록·상세 공통 (서버에 없는 비공개 사유는 null → 화면에서 숨김)
-const toReportSummary = ({ reportId, kind, status, createdAt }) => ({
+// account: 리스트 대표 식별자 (계좌가 없으면 전화번호, 그다음 SNS)
+const toReportSummary = ({ reportId, kind, status, createdAt, identifiers }) => ({
   id: String(reportId),
   type: KIND_TYPE[kind] ?? "suspect",
   status: STATUS[status] ?? "posted",
   reason: null,
   date: formatDate(createdAt),
+  account: toMainIdentifier(identifiers),
 });
 
 // 유지·삭제를 결정할 수 있는 이의제기 (없으면 null)
@@ -86,17 +122,18 @@ const toPendingDispute = (disputes = []) => {
 };
 
 // 상세 화면 데이터
-// account: 첫 번째 계좌 마스킹 값, relatedInfo: 전화번호·SNS 식별자
+// account: 첫 번째 계좌 전체 값, relatedInfo: 전화번호·SNS 식별자 (마스킹 없이 value)
 // conversations: 판독 근거 상세 (위험도·행동·이유·실제 사례), 없는 예전 신고는 quotes(근거 문장)만
 const toReportDetail = (report) => {
   const identifiers = report.identifiers ?? [];
+  const account = identifiers.find((item) => item.type === "ACCOUNT");
   return {
     ...toReportSummary(report),
     reportId: report.reportId,
-    account: identifiers.find((item) => item.type === "ACCOUNT")?.maskedValue ?? "",
+    account: account ? identifierText(account) : "",
     relatedInfo: identifiers
       .filter((item) => RELATED_IDENTIFIER[item.type])
-      .map((item) => ({ ...RELATED_IDENTIFIER[item.type], value: item.maskedValue })),
+      .map((item) => ({ ...RELATED_IDENTIFIER[item.type], value: identifierText(item) })),
     conversations: toConversations(report.evidenceDetails),
     quotes: report.evidenceQuotes ?? [],
     dispute: toPendingDispute(report.disputes),

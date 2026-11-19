@@ -11,15 +11,16 @@ const findReport = (reportId) => {
   return report;
 };
 
-// GET /me/reports → 페이지 (목록 항목에는 식별자·근거 문장 없음)
+// GET /me/reports → 페이지 (목록 항목에는 근거 문장 없음, 식별자는 있음)
 export async function getMyReports() {
-  const content = reports.map(({ reportId, kind, status, tradeType, createdAt, disputes }) => ({
+  const content = reports.map(({ reportId, kind, status, tradeType, createdAt, disputes, identifiers }) => ({
     reportId,
     kind,
     status,
     tradeType,
     createdAt,
     disputes,
+    identifiers,
   }));
   return { content, totalElements: content.length, number: 0, last: true };
 }
