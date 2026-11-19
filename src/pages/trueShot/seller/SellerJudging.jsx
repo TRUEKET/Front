@@ -1,16 +1,18 @@
 import styled from "styled-components";
 import MainButton from "../../../components/common/MainButton.jsx";
+import LoadingTicket from "../../../components/common/LoadingTicket.jsx";
 import CountdownBadge from "../../../components/trueShot/CountdownBadge.jsx";
 import ResultTitle from "../../../components/trueShot/ResultTitle.jsx";
 import ReasonList from "../../../components/trueShot/ReasonList.jsx";
 
-// 판독 중 화면 (헤더 없이 안내 문구만, 모션 애니메이션은 진행하지 않기로 해서 자리 삭제)
-// 문구 위치는 모션 자리가 있을 때와 같게: 289 + 모션 150 + 간격 14
+// 판독 중 화면 (헤더 없이 티켓 로딩 애니메이션 + 안내 문구)
+// 위 289px에 150px 애니메이션, 14px 아래에 문구 (문구 위치는 289 + 150 + 14 = 453)
 const StyledLoading = styled.div`
   display: flex;
   flex-direction: column;
+  gap: 14px;
   align-items: center;
-  padding-top: 453px;
+  padding-top: 289px;
 `;
 
 const StyledMessage = styled.p`
@@ -72,6 +74,7 @@ export default function SellerJudging({ judge, remainSeconds, onRetry, onNext })
   return (
     <>
       <StyledLoading>
+        <LoadingTicket />
         <StyledMessage role="status">AI가 사진을 분석 중입니다...</StyledMessage>
       </StyledLoading>
 

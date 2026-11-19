@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import MainButton from "../../../components/common/MainButton.jsx";
+import LoadingTicket from "../../../components/common/LoadingTicket.jsx";
 import { analyzeCaptures, countAccounts, deleteAnalysis } from "../../../api/analyze.js";
 import { getDefaultAccountIndex, verifyReportEvidence } from "../../../api/report.js";
 
@@ -34,22 +35,6 @@ const StyledLoading = styled.div`
   align-items: center;
   padding-top: 279px;
   line-height: normal;
-`;
-
-// 모션 애니메이션이 들어갈 자리 (애니메이션 파일 받기 전까지 자리만 표시)
-const StyledMotionArea = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  width: 150px;
-  height: 150px;
-  border: 1px solid #000000;
-  color: #000000;
-  font-family: "esamanru", sans-serif;
-  font-size: 12px;
-  font-weight: 300;
-  text-align: center;
 `;
 
 const StyledMessage = styled.p`
@@ -135,11 +120,7 @@ export default function ScanLoading({ nextPath = "/scan/result" }) {
 
   return (
     <StyledLoading>
-      <StyledMotionArea>
-        모션 애니메이션
-        <br />
-        삽입 부분
-      </StyledMotionArea>
+      <LoadingTicket />
       <StyledMessage>AI가 대화 내용을 판독 중입니다...</StyledMessage>
     </StyledLoading>
   );

@@ -54,10 +54,11 @@ const StyledNav = styled.nav`
   box-shadow: 0 1px 5px rgba(23, 21, 28, 0.2);
 `;
 
-// 탭 하나: 아이콘 위, 글씨 아래. 현재 페이지면 연보라 배경(80x60)이 깔림
-// 배경 폭 80px 4개(320)가 안쪽 폭 310px에 들어가도록 탭끼리 10/3px씩 겹쳐서, 탭 가운데를 Figma 위치(45, 122, 198.5, 275.5)에 맞춤
+// 탭 하나: 아이콘 위, 글씨 아래. 현재 페이지면 연보라 배경이 깔림
+// 탭 폭 80px 4개(320)가 안쪽 폭 310px에 들어가도록 탭끼리 10/3px씩 겹쳐서, 탭 가운데를 Figma 위치(45, 122, 198.5, 275.5)에 맞춤
+// 배경은 양옆 3px씩 안쪽으로만 칠해서(74x60) 옆 탭의 활성, 호버 배경과 약 2.7px 띄움
 const StyledTab = styled(Link)`
-  flex: 0 0 80px;
+  flex: 0 0 78px;
   height: 60px;
   display: flex;
   flex-direction: column;
