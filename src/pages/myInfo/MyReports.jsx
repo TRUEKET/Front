@@ -101,7 +101,7 @@ export default function MyReports() {
 
   return (
     <>
-      <BackHeader label="홈" />
+      <BackHeader label="내 정보" />
       <StyledContent>
         <StyledTitle>내 신고 리스트</StyledTitle>
         <StyledMyPhone>
