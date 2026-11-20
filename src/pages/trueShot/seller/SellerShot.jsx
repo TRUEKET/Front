@@ -160,10 +160,17 @@ const StyledCodeChars = styled.div`
 `;
 
 // 인증코드 한 글자 칸 (2차에서는 흐리게)
+// 45×58 칸 가운데에 글자 (좌우 여백이 있으면 넓은 글자 W·M이 칸을 넘쳐 오른쪽으로 밀림)
+// esamanru 글꼴은 글자가 위로 약 1.3px 치우쳐 보여서 위쪽 여백 3px로 보정
 const StyledCodeChar = styled.span`
+  display: flex;
+  justify-content: center;
+  align-items: center;
   width: 45px;
+  height: 58px;
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: 3px 0 0;
+  line-height: 1;
   background: ${({ $disabled }) => ($disabled ? "#dedbe5" : "#e5e1f9")};
   border-radius: 10px;
   color: ${({ $disabled }) => ($disabled ? "#a9a4b2" : "#261760")};
