@@ -10,6 +10,7 @@ import { submitSecondPhoto } from "./handAnalyze.js";
 import {
   BUYER_TIMEOUT_REASONS,
   EXPIRED_BUYER_REASON,
+  FIRST_PHOTO_PASSED_REASON,
   SELLER_CHECK_TEXTS,
   SELLER_MESSAGE,
   SELLER_TIMEOUT_REASONS,
@@ -62,7 +63,7 @@ const toProgress = ({ phase, status, failureCode }) => {
 const toBuyerFailReasons = ({ failureCode, failReasons = [] }) => {
   if (BUYER_TIMEOUT_REASONS[failureCode]) return BUYER_TIMEOUT_REASONS[failureCode];
   const reasons = failReasons.map((text) => ({ passed: false, text }));
-  return FAILED_FIRST_DONE.includes(failureCode) ? [{ passed: true, text: "첫 번째 사진 인증 성공" }, ...reasons] : reasons;
+  return FAILED_FIRST_DONE.includes(failureCode) ? [FIRST_PHOTO_PASSED_REASON, ...reasons] : reasons;
 };
 
 // 판매자 링크 (서버 sellerPath /s/{token} → 프론트 판매자 화면 /trueshot/seller/{token})
@@ -159,9 +160,21 @@ export const toSellerReasons = (checks = [], code = "") =>
     }));
 
 // 판매자 최종 실패 이유: 시간 초과는 피그마 문구, 판정 실패는 체크 항목, 그 외는 서버 failReasons
+// 체크 항목은 두 사진 결과가 같이 와서(1번 화질 통과 + 2번 흐림 등) 그대로 나열하면 모순처럼 보임
+// → 구매자 결과 화면처럼 1번 사진이 모두 통과면 '첫 번째 사진 인증 성공' 한 줄 + 2번 사진은 실패 항목만
 const toSellerFailReasons = (result) => {
   if (SELLER_TIMEOUT_REASONS[result.failureCode]) return SELLER_TIMEOUT_REASONS[result.failureCode];
-  const reasons = toSellerReasons(result.checks, result.code);
+  const checks = result.checks ?? [];
+  const firstChecks = checks.filter((check) => check.photoNumber === 1);
+  const secondFailed = toSellerReasons(
+    checks.filter((check) => check.photoNumber === 2 && check.status === "FAILED"),
+    result.code,
+  );
+  if (secondFailed.length > 0) {
+    const firstPassed = firstChecks.length > 0 && firstChecks.every((check) => check.status === "PASSED");
+    return [...(firstPassed ? [FIRST_PHOTO_PASSED_REASON] : toSellerReasons(firstChecks, result.code)), ...secondFailed];
+  }
+  const reasons = toSellerReasons(checks, result.code);
   return reasons.some((reason) => !reason.passed)
     ? reasons
     : (result.failReasons ?? []).map((text) => ({ passed: false, text }));

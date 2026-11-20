@@ -132,12 +132,23 @@ const refresh = (request, now = Date.now()) => {
     const passed = !next.forceFail2;
     const checks = [
       ...next.checks.filter((check) => check.photoNumber === 1),
-      { photoNumber: 2, code: "PHOTO_QUALITY", status: "PASSED", message: "내용을 알아볼 수 있는 화질이에요." },
-      { photoNumber: 2, code: "MISSION", status: passed ? "PASSED" : "FAILED", message: passed ? "미션을 수행했어요." : "미션과 다른 사진이에요." },
+      // 실패 확인용: 2번 사진이 흐리고 미션도 실패 (서버 TrueshotChecks 문구와 같게)
+      passed
+        ? { photoNumber: 2, code: "PHOTO_QUALITY", status: "PASSED", message: "내용을 알아볼 수 있는 화질이에요." }
+        : { photoNumber: 2, code: "PHOTO_QUALITY", status: "FAILED", message: "사진이 흐리거나 내용이 잘 보이지 않아요." },
+      passed
+        ? { photoNumber: 2, code: "MISSION", status: "PASSED", message: "촬영 미션을 지켰어요." }
+        : { photoNumber: 2, code: "MISSION", status: "FAILED", message: "손이 없거나 손 모양·위치가 지시와 일치하지 않아요." },
     ];
     next = passed
       ? { ...next, status: "PASSED", phase: "SHARE_WAITING", checks, judgedAt: iso(now), photos: { ...next.photos, 2: { ...next.photos[2], maskStatus: "READY" } } }
-      : { ...fail(next, "VERIFICATION_FAILED", ["미션과 다른 사진이에요."]), checks };
+      : {
+          ...fail(next, "VERIFICATION_FAILED", [
+            "두 번째 사진이 흐리거나 예매 화면의 내용을 확인할 수 없음",
+            "두 번째 사진의 손 모양 또는 위치가 지시와 일치하지 않음",
+          ]),
+          checks,
+        };
   }
   return next === request ? request : saveRequest(next);
 };

@@ -16,10 +16,13 @@ export const SUCCESS_REASONS = {
 
 // 판매자 체크 항목(checks.code + status) → 피그마 문구 ({code}는 인증코드). 없는 조합은 서버 message 사용
 export const SELLER_CHECK_TEXTS = {
-  PHOTO_QUALITY: { PASSED: "알아볼 수 있는 화질이에요" },
+  PHOTO_QUALITY: { PASSED: "알아볼 수 있는 화질이에요", FAILED: "사진이 흐리거나 내용이 잘 보이지 않아요" },
   AUTH_CODE: { PASSED: "인증코드 {code}가 맞아요", FAILED: "인증코드 {code}가 아니에요" },
   MISSION: { PASSED: "무작위 지시를 잘 이행했어요", FAILED: "정해진 지시에 따르지 못했어요" },
 };
+
+// 최종 실패 이유 첫 줄: 첫 번째 사진은 통과 (구매자·판매자 결과 화면 공통)
+export const FIRST_PHOTO_PASSED_REASON = { passed: true, text: "첫 번째 사진 인증 성공" };
 
 // 판매자 화면 시간 초과 문구 (failureCode → 피그마 문구)
 export const SELLER_TIMEOUT_REASONS = {
@@ -32,7 +35,7 @@ export const SELLER_TIMEOUT_REASONS = {
 export const BUYER_TIMEOUT_REASONS = {
   FIRST_PHOTO_TIMEOUT: [{ passed: false, text: "첫 번째 사진이 시간 내에 전송되지 않음" }],
   SECOND_PHOTO_TIMEOUT: [
-    { passed: true, text: "첫 번째 사진 인증 성공" },
+    FIRST_PHOTO_PASSED_REASON,
     { passed: false, text: "두 번째 사진이 시간 내에 전송되지 않음" },
   ],
 };
