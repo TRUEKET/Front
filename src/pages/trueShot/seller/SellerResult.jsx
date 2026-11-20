@@ -38,6 +38,13 @@ const StyledReasonTitle = styled.p`
   font-weight: 600;
 `;
 
+// 사진 전송 전 성공 화면 안내 (피그마에 없음, 디자인 확인 필요)
+const StyledShareGuide = styled.p`
+  color: #5434d6;
+  font-size: 14px;
+  font-weight: 600;
+`;
+
 // 재진행 안내 (연보라 박스)
 const StyledNotice = styled.p`
   padding: 12px 16px;
@@ -50,7 +57,8 @@ const StyledNotice = styled.p`
 
 // 판매자 최종 결과 (success: 인증 성공 / 그 외: 인증 실패 + 이유)
 // buttonLabel·onButton이 없으면 버튼을 숨김 (요청자에게 전송까지 마친 뒤)
-export default function SellerResult({ success, reasons = [], buttonLabel, onButton }) {
+// shareGuide: 성공했지만 아직 사진을 가리고 보내기 전이면 true (전송해야 완료된다는 안내)
+export default function SellerResult({ success, reasons = [], buttonLabel, onButton, shareGuide = false }) {
   return (
     <>
       <StyledResult>
@@ -64,6 +72,7 @@ export default function SellerResult({ success, reasons = [], buttonLabel, onBut
               <br />
               구매 여부는 트루켓이 결정하지 않습니다.
             </StyledMessage>
+            {shareGuide && <StyledShareGuide>사진을 가리고 전송해야 인증이 완료돼요.</StyledShareGuide>}
           </>
         ) : (
           <>

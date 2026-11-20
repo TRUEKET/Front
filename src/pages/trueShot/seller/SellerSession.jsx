@@ -250,7 +250,14 @@ export default function SellerSession() {
 
     if (phase === "SHARE_WAITING") {
       if (maskPhoto) return <MaskEditor photo={maskPhoto} buttonLabel="요청자에게 전송하기" busy={busy} onDone={handleShare} />;
-      return <SellerResult success buttonLabel="개인정보 가리기" onButton={() => setMaskPhoto(session.previews[2])} />;
+      return (
+        <SellerResult
+          success
+          shareGuide
+          buttonLabel="개인정보 가리기"
+          onButton={() => setMaskPhoto(session.previews[2])}
+        />
+      );
     }
 
     // 2차 사진 제출 중·판정 대기
