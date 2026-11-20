@@ -70,8 +70,18 @@ const StyledReasonTitle = styled.p`
 
 // 1차 판독 중 화면 + 결과 모달 (2차 사진을 서버가 받지 못했을 때도 같은 실패 모달)
 // judge: 판독 결과 (null이면 판독 중), remainSeconds: 현재 단계 남은 시간 (실패 모달에서 계속 줄어듦)
-// failTitle: 실패 모달 제목 (기본은 1차 인증 실패)
-export default function SellerJudging({ judge, remainSeconds, onRetry, onNext, failTitle = "1차 인증에 실패했습니다." }) {
+// failTitle: 실패 모달 제목 (기본은 1차 인증 실패), reasonTitle: 이유 카드 제목
+// secondaryLabel·onSecondary: '다시 찍기' 아래 두 번째 버튼 (2차 손 확인 모달의 '그대로 보내기', 없으면 숨김)
+export default function SellerJudging({
+  judge,
+  remainSeconds,
+  onRetry,
+  onNext,
+  failTitle = "1차 인증에 실패했습니다.",
+  reasonTitle = "실패 이유",
+  secondaryLabel,
+  onSecondary,
+}) {
   return (
     <>
       <StyledLoading>
@@ -99,13 +109,18 @@ export default function SellerJudging({ judge, remainSeconds, onRetry, onNext, f
                 <StyledFailBody>
                   <CountdownBadge seconds={remainSeconds} />
                   <StyledReasonCard>
-                    <StyledReasonTitle>실패 이유</StyledReasonTitle>
+                    <StyledReasonTitle>{reasonTitle}</StyledReasonTitle>
                     <ReasonList reasons={judge.reasons} gap={8} />
                   </StyledReasonCard>
                 </StyledFailBody>
                 <MainButton type="button" onClick={onRetry}>
                   다시 찍기
                 </MainButton>
+                {secondaryLabel && (
+                  <MainButton type="button" variant="outline" onClick={onSecondary}>
+                    {secondaryLabel}
+                  </MainButton>
+                )}
               </>
             )}
           </StyledDialog>
