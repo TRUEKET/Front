@@ -40,6 +40,13 @@ export const BUYER_TIMEOUT_REASONS = {
   ],
 };
 
+// 판매자가 2차까지 통과했지만 공유 기한(요청 30분) 안에 사진을 보내지 않음 (구매자 실패 이유)
+export const BUYER_PHOTO_NOT_SENT_REASONS = [
+  FIRST_PHOTO_PASSED_REASON,
+  { passed: true, text: "두 번째 사진 인증 성공" },
+  { passed: false, text: "판매자가 시간 내에 사진을 보내지 않음" },
+];
+
 // 시간 만료(failureCode=REQUEST_TIMEOUT) 구매자 결과 화면 문구
 export const EXPIRED_BUYER_REASON = "판매자가 30분 안에 인증을 시작하지 않았어요.";
 
