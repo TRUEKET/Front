@@ -5,6 +5,7 @@ import BackHeader from "../../../components/header/BackHeader.jsx";
 import ScanBox from "../../../components/common/ScanBox.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import Button from "../../../components/common/Button.jsx";
+import ReportHistorySheet from "../../../components/scan/ReportHistorySheet.jsx";
 import {
   deleteAnalysis,
   findIdentifier,
@@ -108,6 +109,10 @@ const toReportResult = ({ result, evidence, tradeType }) => {
     account,
     phone,
     sns,
+    // 신고 이력 시트: 대화에서 찾은 계좌, 전화번호, SNS (판독 응답에 식별자별 인원이 없어 건수는 0건으로 표시)
+    reportHistory: identifiers.length > 0
+      ? identifiers.map(({ value }) => ({ target: value }))
+      : [{ target: "계좌 정보 없음" }, { target: "전화번호 정보 없음" }],
     evidenceToken: evidence.evidenceToken,
     checks,
   };
@@ -373,6 +378,7 @@ export default function ReportResult() {
   const [feedback, setFeedback] = useState(null);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isFeedbackSending, setIsFeedbackSending] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const result = useMemo(() => (state?.result && state?.evidence ? toReportResult(state) : null), [state]);
 
@@ -445,9 +451,15 @@ export default function ReportResult() {
           <StyledHeadlineSub>{config.sub}</StyledHeadlineSub>
         </StyledHeadlineGroup>
 
-        {/* TODO: 판독 응답에 식별자별 신고 인원이 생기면 이력 횟수와 신고 이력 시트(ReportHistorySheet) 다시 연결 */}
+        {/* 박스를 누르면 계좌, 전화번호별 신고 이력 시트를 띄움 */}
         {isMatch && (
-          <ScanBox status={result.reportStatus} title={result.reportTitle} account={result.account} phone={result.phone} />
+          <ScanBox
+            status={result.reportStatus}
+            title={result.reportTitle}
+            account={result.account || "계좌 정보 없음"}
+            phone={result.phone || "전화번호 정보 없음"}
+            onClick={() => setIsHistoryOpen(true)}
+          />
         )}
 
         <StyledCard>
@@ -516,6 +528,7 @@ export default function ReportResult() {
           </StyledFeedback>
         </StyledBottom>
       </StyledContent>
+      {isHistoryOpen && <ReportHistorySheet history={result.reportHistory} onClose={() => setIsHistoryOpen(false)} />}
     </StyledPage>
   );
 }
