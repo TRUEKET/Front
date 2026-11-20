@@ -124,7 +124,7 @@ const refresh = (request, now = Date.now()) => {
   }
   // 성공했지만 판매자가 공유 기한(요청 30분) 안에 사진을 안 보냄 → 서버 closeShareWindow처럼 사진 없이 COMPLETED
   if (next.phase === "SHARE_WAITING" && now > Date.parse(next.expiresAt)) {
-    next = { ...next, phase: "COMPLETED" };
+    next = { ...next, phase: "COMPLETED", shareEndReason: "SHARE_TIMEOUT" };
   }
   if (next.phase === "FIRST_CHECKING" && now > Date.parse(next.deadline1)) {
     next = fail(next, "FIRST_PHOTO_TIMEOUT", ["첫 번째 사진 제출 시간이 지났어요."]);
@@ -172,7 +172,7 @@ const findByToken = (token) => {
 // ---------- 응답 만들기 ----------
 
 // 목록 항목 (서버 RequestSummary와 같게 photosSharedAt 포함, 공유 전·공유 없이 종료면 null)
-const summary = ({ id, title, status, phase, createdAt, expiresAt, failureCode, photosSharedAt }) => ({
+const summary = ({ id, title, status, phase, createdAt, expiresAt, failureCode, photosSharedAt, shareEndReason }) => ({
   id,
   title,
   status,
@@ -181,6 +181,8 @@ const summary = ({ id, title, status, phase, createdAt, expiresAt, failureCode, 
   expiresAt,
   failureCode,
   photosSharedAt: photosSharedAt ?? null,
+  // 사진 미공유 종료 사유 (SHARE_TIMEOUT / MASK_FAILED / DECLINED, 대기·공유 완료·판정 실패는 null)
+  shareEndReason: shareEndReason ?? null,
 });
 
 const detail = (request) => ({
@@ -193,6 +195,7 @@ const detail = (request) => ({
   deadline1: request.deadline1,
   deadline2: request.deadline2,
   photosSharedAt: request.photosSharedAt,
+  shareEndReason: request.shareEndReason ?? null,
   failReasons: request.failReasons,
   judgedAt: request.judgedAt,
   judgmentResult: null,
@@ -220,6 +223,7 @@ const sellerResult = (request) => {
     phase: request.phase,
     judgedAt: request.judgedAt,
     photosSharedAt: request.photosSharedAt,
+    shareEndReason: request.shareEndReason ?? null,
     canShare: request.phase === "SHARE_WAITING",
     message: request.phase === "JUDGING" ? "사진을 확인하고 있어요." : "",
     checks: request.checks,
@@ -416,6 +420,7 @@ export async function share(token, { sharePhotos, boxes }) {
     ...request,
     phase: "COMPLETED",
     photosSharedAt: sharePhotos ? iso(Date.now()) : null,
+    shareEndReason: sharePhotos ? null : "DECLINED",
     photos: { ...request.photos, 2: { ...request.photos[2], masked } },
   });
   return sellerResult(updated);
