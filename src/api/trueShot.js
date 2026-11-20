@@ -116,26 +116,10 @@ const toRequestDetail = (request) => {
 // GET /trueshot/{id} 원본 응답
 const fetchRequest = (id, options) => (USE_MOCK ? mockTrueShot.getRequest(id) : api.get(`/trueshot/${id}`, options));
 
-// 목록 응답에는 사진 공유 여부(photosSharedAt·photos)가 없어서, 성공으로 끝난 요청(PASSED + COMPLETED)만
-// 상세를 한 번 더 불러와 사진을 받았는지 확인 (받지 못했으면 목록 배지도 인증 실패)
-// TODO: 백엔드 목록 응답에 photosSharedAt이 생기면 이 추가 요청 없애기
-const withShareInfo = async (request, options) => {
-  if (request.status !== "PASSED" || request.phase !== "COMPLETED") return request;
-  try {
-    const { photosSharedAt, photos } = await fetchRequest(request.id, options);
-    return { ...request, photosSharedAt, photos };
-  } catch (error) {
-    if (error.name === "AbortError") throw error;
-    // 확인 실패면 목록 응답 그대로 (인증 성공)
-    return request;
-  }
-};
-
-// GET /trueshot → 최신 순 목록
+// GET /trueshot → 최신 순 목록 (photosSharedAt으로 사진 없이 끝난 요청도 목록 배지에서 인증 실패)
 export async function getTrueShotRequests(options) {
   const requests = USE_MOCK ? await mockTrueShot.listRequests() : await api.get("/trueshot", options);
-  const checked = await Promise.all(requests.map((request) => withShareInfo(request, options)));
-  return checked.map(toRequestSummary);
+  return requests.map(toRequestSummary);
 }
 
 // POST /trueshot → 새 요청 (이름은 서버가 "요청 N"으로 정함)

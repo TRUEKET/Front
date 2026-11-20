@@ -171,7 +171,17 @@ const findByToken = (token) => {
 
 // ---------- 응답 만들기 ----------
 
-const summary = ({ id, title, status, phase, createdAt, expiresAt, failureCode }) => ({ id, title, status, phase, createdAt, expiresAt, failureCode });
+// 목록 항목 (서버 RequestSummary와 같게 photosSharedAt 포함, 공유 전·공유 없이 종료면 null)
+const summary = ({ id, title, status, phase, createdAt, expiresAt, failureCode, photosSharedAt }) => ({
+  id,
+  title,
+  status,
+  phase,
+  createdAt,
+  expiresAt,
+  failureCode,
+  photosSharedAt: photosSharedAt ?? null,
+});
 
 const detail = (request) => ({
   ...summary(request),
