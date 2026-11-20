@@ -182,6 +182,7 @@ const StyledCopyButton = styled(MainButton)`
 
 // 트루샷-구매자(요청 상세): 인증코드, 판매자에게 보낼 메시지·링크 전송(공유 시트, 없으면 복사), 진행 단계
 // 촬영 대기(진행 중)일 때만 5초마다 다시 불러옴 (완료·실패·시간 만료되면 결과 화면으로, 화면을 벗어나면 멈춤)
+// 판매자가 2차를 통과했어도 사진을 보내기 전(SHARE_WAITING)이면 진행 중이라 이 화면에 머물고, 보내면 결과 화면으로
 export default function RequestDetail() {
   const { id } = useParams();
   // 불러오기 전 undefined, 없는 요청(404 등)이면 null
