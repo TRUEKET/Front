@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import styled from "styled-components";
 import BackHeader from "../../../components/header/BackHeader.jsx";
 import MainButton from "../../../components/common/MainButton.jsx";
 import RequestProgress from "./RequestProgress.jsx";
 import copyIcon from "../../../assets/icons/trueshot_copy.svg";
-import { getSellerMessage, getTrueShotRequest, sendSellerMessage } from "../../../api/trueShot.js";
+import pencilIcon from "../../../assets/icons/trueshot_pencil.svg";
+import {
+  getSellerMessage,
+  getTrueShotRequest,
+  renameTrueShotRequest,
+  sendSellerMessage,
+} from "../../../api/trueShot.js";
 
 // 진행 중일 때 판매자 진행 상황을 다시 불러오는 간격(ms)
 const POLL_MS = 5000;
@@ -21,7 +27,7 @@ const StyledContent = styled.div`
   text-align: left;
 `;
 
-// 요청 이름 (이름 수정 API가 없어 연필 버튼은 숨김)
+// 요청 이름 + 연필 버튼 (누르면 제목 자리가 입력칸으로 바뀜)
 const StyledTitleRow = styled.div`
   display: flex;
   gap: 10px;
@@ -45,6 +51,34 @@ const StyledTitle = styled.h2`
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
+
+// 이름 수정 중일 때 제목 자리에 들어가는 입력칸 (제목과 같은 글자, 연보라 밑줄)
+const StyledTitleInput = styled.input`
+  ${titleFont}
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid #cac0f2;
+  border-radius: 0;
+  outline: none;
+  background: none;
+`;
+
+const StyledIconButton = styled.button`
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+
+  img {
+    display: block;
+  }
+`;
+
+// 제목 최대 글자 수 (서버 PATCH /trueshot/{id} 기준)
+const TITLE_MAX_LENGTH = 20;
 
 // 검정 카드: 왼쪽 인증코드 | 점선 | 오른쪽 2번째 지시 (높이 121)
 const StyledCodeCard = styled.section`
@@ -152,6 +186,11 @@ export default function RequestDetail() {
   const { id } = useParams();
   // 불러오기 전 undefined, 없는 요청(404 등)이면 null
   const [request, setRequest] = useState(undefined);
+  // 제목 수정 중이면 입력 중인 값, 아니면 null
+  const [editingName, setEditingName] = useState(null);
+  // 저장 중복 방지(Enter 후 입력칸이 사라질 때의 blur 등), Esc로 취소하면 저장 건너뜀
+  const savingRef = useRef(false);
+  const cancelRef = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -183,12 +222,69 @@ export default function RequestDetail() {
   // 상세를 켜 둔 채 판정이 끝나도 진행 단계에 머물지 않고 인증 성공·실패를 바로 보여줌
   if (request.status !== "pending") return <Navigate to={`/trueshot/requests/${id}/result`} replace />;
 
+  // 입력칸에서 벗어나면 저장 (비었거나 그대로면 저장 없이 원래 제목, 실패해도 원래 제목)
+  const saveName = async () => {
+    if (cancelRef.current) {
+      cancelRef.current = false;
+      return;
+    }
+    if (savingRef.current) return;
+    const title = (editingName ?? "").trim();
+    if (!title || title === request.name) {
+      setEditingName(null);
+      return;
+    }
+    savingRef.current = true;
+    try {
+      setRequest(await renameTrueShotRequest(id, title));
+    } catch {
+      // 저장 실패(400 등)면 원래 제목 그대로
+    } finally {
+      savingRef.current = false;
+      setEditingName(null);
+    }
+  };
+
+  // 연필 버튼: 지금 제목으로 입력칸 열기 (이전 Esc 취소 표시는 지움)
+  const startEditing = () => {
+    cancelRef.current = false;
+    setEditingName(request.name);
+  };
+
+  // Enter 저장(한글 조합 중 Enter는 무시), Esc 취소
+  const handleNameKeyDown = (e) => {
+    if (e.nativeEvent.isComposing) return;
+    if (e.key === "Enter") e.currentTarget.blur();
+    if (e.key === "Escape") {
+      cancelRef.current = true;
+      setEditingName(null);
+    }
+  };
+
   return (
     <>
       <BackHeader label="뒤로가기" />
       <StyledContent>
         <StyledTitleRow>
-          <StyledTitle>{request.name}</StyledTitle>
+          {editingName === null ? (
+            <>
+              <StyledTitle>{request.name}</StyledTitle>
+              <StyledIconButton type="button" aria-label="요청 이름 수정" onClick={startEditing}>
+                <img src={pencilIcon} alt="" />
+              </StyledIconButton>
+            </>
+          ) : (
+            <StyledTitleInput
+              aria-label="요청 이름"
+              value={editingName}
+              maxLength={TITLE_MAX_LENGTH}
+              enterKeyHint="done"
+              onChange={(e) => setEditingName(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={handleNameKeyDown}
+              autoFocus
+            />
+          )}
         </StyledTitleRow>
 
         <StyledCodeCard>
