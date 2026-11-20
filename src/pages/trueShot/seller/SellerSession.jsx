@@ -44,9 +44,10 @@ const PREFETCH_PHASES = ["FIRST_CHECKING", "FIRST_MASKING", "SECOND_WAITING"];
 const RETAKE_MIN_REMAIN_MS = UPLOAD_MARGIN_MS + 10000;
 
 // 보내기 전 확인 모달 문구 (피그마에 없음, 디자인 확인 필요)
+// 실제 사진에서 손등 브이는 브이로 인식되지 않는 경우가 많아 손바닥이 보이게 안내
 const RETAKE_TEXT = {
-  NO_HANDS: { title: "손이 보이지 않아요.", reason: "손이 사진에 크게 나오도록 다시 찍어 주세요" },
-  LOW_VICTORY: { title: "브이가 잘 보이지 않아요.", reason: "손가락 브이가 또렷하게 보이도록 다시 찍어 주세요" },
+  NO_HANDS: { title: "손이 보이지 않아요.", reason: "손목까지 손 전체가 사진에 나오도록 다시 찍어 주세요" },
+  LOW_VICTORY: { title: "브이가 잘 보이지 않아요.", reason: "손바닥이 카메라를 향하게 브이를 하고 다시 찍어 주세요" },
 };
 
 // 판매자 트루샷 (구매자가 보낸 링크 /trueshot/seller/:token 으로 들어옴, 로그인 없음)
@@ -389,6 +390,7 @@ export default function SellerSession() {
         round={round}
         code={session.code}
         mission={session.instruction2 ?? ""}
+        missionType={session.mission2?.type ?? null}
         remainSeconds={remainSeconds ?? 0}
         onShot={round === 1 ? handleFirstShot : handleSecondShot}
       />
