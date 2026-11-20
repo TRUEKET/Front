@@ -25,8 +25,10 @@ const toApiUrl = (path) => (!path ? null : /^(https?:|data:)/.test(path) ? path 
 
 // 화면 상태: pending 촬영 대기 / success 인증 성공 / failed 인증 실패 / expired 시간 만료
 // 목록·상세 응답 모두 failureCode가 있어 시간 만료(REQUEST_TIMEOUT)를 목록 배지에서도 구분
-const toStatus = ({ status, failureCode }) => {
-  if (status === "PASSED") return "success";
+// 서버는 2차 판정 통과 시 바로 PASSED + SHARE_WAITING, 판매자가 사진을 가리고 보내면(또는 공유 기한이 지나면) COMPLETED
+// → 구매자에게는 판매자가 사진을 보낸 뒤에 인증 성공을 보여주도록 SHARE_WAITING까지는 진행 중으로 처리
+const toStatus = ({ status, phase, failureCode }) => {
+  if (status === "PASSED") return phase === "SHARE_WAITING" ? "pending" : "success";
   if (status === "FAILED") return failureCode === "REQUEST_TIMEOUT" ? "expired" : "failed";
   return "pending";
 };
@@ -40,8 +42,9 @@ const FAILED_FIRST_DONE = ["SECOND_PHOTO_TIMEOUT", "ANALYSIS_TIMEOUT", "VERIFICA
 const FAILED_SECOND_DONE = ["ANALYSIS_TIMEOUT", "VERIFICATION_FAILED"];
 
 // 진행 단계 4개 (시간 만료는 '링크 제작 완료'만 체크)
-// '인증 완료'는 인증 성공일 때만 체크 (실패에도 켜면 성공처럼 보임)
-const toProgress = ({ phase, status, failureCode }) => {
+// '인증 완료'는 화면 상태가 인증 성공일 때만 체크 (실패·판매자 사진 전송 전에 켜면 성공처럼 보임)
+const toProgress = (request) => {
+  const { phase, status, failureCode } = request;
   const failed = status === "FAILED";
   const expired = failureCode === "REQUEST_TIMEOUT";
   return [
@@ -54,7 +57,7 @@ const toProgress = ({ phase, status, failureCode }) => {
       label: "판매자의 두 번째 촬영",
       done: !expired && (failed ? FAILED_SECOND_DONE.includes(failureCode) : reached(phase, "JUDGING")),
     },
-    { label: "인증 완료", done: status === "PASSED" },
+    { label: "인증 완료", done: toStatus(request) === "success" },
   ];
 };
 
