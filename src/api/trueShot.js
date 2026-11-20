@@ -96,6 +96,8 @@ const toRequestDetail = (request) => {
     failReasons: status === "failed" ? toBuyerFailReasons(request) : [],
     // 공유된 가림 사진 2장 (공유 전·거절이면 null → 회색 자리)
     photos: [photos.get(1) ?? null, photos.get(2) ?? null],
+    // 인증 성공인데 사진이 없음: 판매자가 공유 기한(요청 30분) 안에 안 보냄·공유 거절·가림 불확실 (서버 응답으로는 구분 안 됨)
+    photosMissing: status === "success" && photos.size === 0,
   };
 };
 
