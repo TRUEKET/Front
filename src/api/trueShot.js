@@ -116,6 +116,13 @@ export async function getTrueShotRequest(id, options) {
   return toRequestDetail(request);
 }
 
+// PATCH /trueshot/{id} → 제목 수정 후 상세 (제목 필수·최대 20자·공백만 불가는 400, 앞뒤 공백은 서버가 제거)
+export async function renameTrueShotRequest(id, title) {
+  const body = { title };
+  const request = USE_MOCK ? await mockTrueShot.updateTitle(id, body) : await api.patch(`/trueshot/${id}`, body);
+  return toRequestDetail(request);
+}
+
 // 판매자 송신용 메시지 미리보기 문구
 export const getSellerMessage = () => SELLER_MESSAGE;
 
