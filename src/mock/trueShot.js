@@ -85,9 +85,9 @@ export const SECOND_SHOT_SECONDS = 60;
 // 2차 미션 (서버와 같은 종류: 브이 / 화면 가리키기 / 브이 + 위치)
 const POSITION_TEXTS = { LEFT: "왼쪽", RIGHT: "오른쪽", ABOVE: "위", BELOW: "아래" };
 
+// 서버처럼 브이·브이 위치 미션만 발급 (화면 가리키기 POINT_SCREEN은 2026-11-20 신규 발급 제외, 화면 처리는 기존 발급 건 호환용으로 남김)
 export const MOCK_SECOND_MISSIONS = [
   { instruction2: "브이를 하고 예매 화면과 함께 찍어 주세요.", mission2: { type: "GESTURE", gesture: "Victory", position: null } },
-  { instruction2: "손가락으로 예매 화면을 가리키고 찍어 주세요.", mission2: { type: "POINT_SCREEN", gesture: null, position: null } },
   ...Object.entries(POSITION_TEXTS).map(([position, label]) => ({
     instruction2: `브이를 예매 화면 ${label}에 두고 찍어 주세요.`,
     mission2: { type: "GESTURE_POSITION", gesture: "Victory", position },
