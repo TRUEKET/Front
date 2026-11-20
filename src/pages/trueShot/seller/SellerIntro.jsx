@@ -144,7 +144,7 @@ const StyledNotice = styled.p`
   }
 `;
 
-// 동의 체크박스 (15px 네모, 체크되면 보라색 + 흰 체크, ReportForm 체크박스와 같은 모양)
+// 동의 체크박스 (15px 네모, 체크되면 보라색으로 꽉 채움, 체크 표시 없음)
 const StyledAgree = styled.label`
   display: flex;
   gap: 8px;
@@ -160,26 +160,12 @@ const StyledAgree = styled.label`
 `;
 
 const StyledCheckBox = styled.span`
-  position: relative;
   flex-shrink: 0;
   box-sizing: border-box;
   width: 15px;
   height: 15px;
   border: 1px solid ${({ $checked }) => ($checked ? "#5434d6" : "#191919")};
   background: ${({ $checked }) => ($checked ? "#5434d6" : "transparent")};
-
-  &::after {
-    content: "";
-    display: ${({ $checked }) => ($checked ? "block" : "none")};
-    position: absolute;
-    left: 4px;
-    top: 1px;
-    width: 4px;
-    height: 8px;
-    border: solid #fdfdfd;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-  }
 `;
 
 // 판매자 입장 화면: 트루샷 안내 + 전달 동의 후 인증 시작
