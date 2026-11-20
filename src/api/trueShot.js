@@ -10,12 +10,14 @@ import { submitSecondPhoto } from "./handAnalyze.js";
 import {
   BUYER_MASK_FAILED_REASONS,
   BUYER_PHOTO_NOT_SENT_REASONS,
+  BUYER_SHARE_DECLINED_REASONS,
   BUYER_TIMEOUT_REASONS,
   EXPIRED_BUYER_REASON,
   FIRST_PHOTO_PASSED_REASON,
   SELLER_CHECK_TEXTS,
   SELLER_MASK_FAILED_REASONS,
   SELLER_PHOTO_NOT_SENT_REASONS,
+  SELLER_SHARE_DECLINED_REASONS,
   SELLER_MESSAGE,
   SELLER_TIMEOUT_REASONS,
   SUCCESS_REASONS,
@@ -35,11 +37,25 @@ const toApiUrl = (path) => (!path ? null : /^(https?:|data:)/.test(path) ? path 
 const isPhotoNotSent = ({ status, phase, photosSharedAt, photos }) =>
   status === "PASSED" && phase === "COMPLETED" && photosSharedAt === null && !photos?.length;
 
-// 사진 없이 끝난 이유 구분: 서버는 공유 기한(요청 30분)이 지나야 미전송으로 닫으므로,
-// 응답 시점(serverTime)이 공유 기한 전인데 이미 사진 없이 끝났으면 기한 초과가 아니라 자동 가림 실패(공유 불가)
-// 공유 기한이 지난 뒤 조회하면 서버 값만으로는 구분이 안 됨 → 기한 초과로 안내 (백엔드에 종료 이유 값 요청 예정)
-const isMaskFailedEnd = ({ serverTime, expiresAt }) =>
-  Boolean(serverTime && expiresAt) && Date.parse(serverTime) < Date.parse(expiresAt);
+// 사진 없이 끝난 이유: 서버 shareEndReason (SHARE_TIMEOUT 공유 기한 만료 / MASK_FAILED 가림 실패로 공유 불가 / DECLINED 공유 거절)
+// 원인이 기록되지 않은 과거 건은 null → 응답 시점(serverTime)이 공유 기한 전인데 이미 끝났으면 가림 실패, 아니면 기한 초과로 대신 판단
+const toShareEndReason = ({ shareEndReason, serverTime, expiresAt }) => {
+  if (shareEndReason) return shareEndReason;
+  const beforeDeadline = Boolean(serverTime && expiresAt) && Date.parse(serverTime) < Date.parse(expiresAt);
+  return beforeDeadline ? "MASK_FAILED" : "SHARE_TIMEOUT";
+};
+
+// 사진 없이 끝난 이유별 실패 문구 (모르는 값은 기한 초과 문구)
+const BUYER_SHARE_END_REASONS = {
+  SHARE_TIMEOUT: BUYER_PHOTO_NOT_SENT_REASONS,
+  MASK_FAILED: BUYER_MASK_FAILED_REASONS,
+  DECLINED: BUYER_SHARE_DECLINED_REASONS,
+};
+const SELLER_SHARE_END_REASONS = {
+  SHARE_TIMEOUT: SELLER_PHOTO_NOT_SENT_REASONS,
+  MASK_FAILED: SELLER_MASK_FAILED_REASONS,
+  DECLINED: SELLER_SHARE_DECLINED_REASONS,
+};
 
 const toStatus = (request) => {
   const { status, phase, failureCode } = request;
@@ -83,7 +99,7 @@ const toProgress = (request) => {
 // 촬영 시간 초과는 기획 확정 문구, 판정 실패는 첫 사진 통과 + 서버 failReasons
 const toBuyerFailReasons = (request) => {
   const { failureCode, failReasons = [] } = request;
-  if (isPhotoNotSent(request)) return isMaskFailedEnd(request) ? BUYER_MASK_FAILED_REASONS : BUYER_PHOTO_NOT_SENT_REASONS;
+  if (isPhotoNotSent(request)) return BUYER_SHARE_END_REASONS[toShareEndReason(request)] ?? BUYER_PHOTO_NOT_SENT_REASONS;
   if (BUYER_TIMEOUT_REASONS[failureCode]) return BUYER_TIMEOUT_REASONS[failureCode];
   const reasons = failReasons.map((text) => ({ passed: false, text }));
   return FAILED_FIRST_DONE.includes(failureCode) ? [FIRST_PHOTO_PASSED_REASON, ...reasons] : reasons;
@@ -223,9 +239,7 @@ const toSellerSession = (result) => ({
   pollAfter: result.pollAfterMillis ?? null,
   previews: Object.fromEntries((result.photos ?? []).map((photo) => [photo.number, toApiUrl(photo.previewPath)])),
   failReasonList: isSellerPhotoNotSent(result)
-    ? isMaskFailedEnd(result)
-      ? SELLER_MASK_FAILED_REASONS
-      : SELLER_PHOTO_NOT_SENT_REASONS
+    ? (SELLER_SHARE_END_REASONS[toShareEndReason(result)] ?? SELLER_PHOTO_NOT_SENT_REASONS)
     : result.status === "FAILED"
       ? toSellerFailReasons(result)
       : [],
