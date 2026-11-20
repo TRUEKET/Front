@@ -34,6 +34,9 @@ export const SELLER_TIMEOUT_REASONS = {
 // 판매자가 2차까지 통과했지만 공유 기한(요청 30분) 안에 사진을 보내지 않음 (타임어택 실패 화면과 같은 틀)
 export const SELLER_PHOTO_NOT_SENT_REASONS = [{ passed: false, text: "시간 내에 사진을 보내지 않아 인증에 실패했어요." }];
 
+// 판매자가 2차까지 통과했지만 서버 자동 가림이 실패해 사진을 보낼 수 없게 끝남 (같은 틀)
+export const SELLER_MASK_FAILED_REASONS = [{ passed: false, text: "사진 가림을 완료하지 못해 사진을 보낼 수 없어요." }];
+
 // 구매자 실패 이유 (failureCode → 11-16 기획 확정 문구)
 export const BUYER_TIMEOUT_REASONS = {
   FIRST_PHOTO_TIMEOUT: [{ passed: false, text: "첫 번째 사진이 시간 내에 전송되지 않음" }],
@@ -48,6 +51,13 @@ export const BUYER_PHOTO_NOT_SENT_REASONS = [
   FIRST_PHOTO_PASSED_REASON,
   { passed: true, text: "두 번째 사진 인증 성공" },
   { passed: false, text: "판매자가 시간 내에 사진을 보내지 않음" },
+];
+
+// 2차까지 통과했지만 서버 자동 가림이 실패해 사진을 공유할 수 없게 끝남 (구매자 실패 이유)
+export const BUYER_MASK_FAILED_REASONS = [
+  FIRST_PHOTO_PASSED_REASON,
+  { passed: true, text: "두 번째 사진 인증 성공" },
+  { passed: false, text: "판매자 사진의 개인정보 가림을 완료하지 못함" },
 ];
 
 // 시간 만료(failureCode=REQUEST_TIMEOUT) 구매자 결과 화면 문구
