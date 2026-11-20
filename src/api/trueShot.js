@@ -161,23 +161,21 @@ export const toSellerReasons = (checks = [], code = "") =>
 
 // 판매자 최종 실패 이유: 시간 초과는 피그마 문구, 판정 실패는 체크 항목, 그 외는 서버 failReasons
 // 체크 항목은 두 사진 결과가 같이 와서(1번 화질 통과 + 2번 흐림 등) 그대로 나열하면 모순처럼 보임
-// → 구매자 결과 화면처럼 1번 사진이 모두 통과면 '첫 번째 사진 인증 성공' 한 줄 + 2번 사진은 실패 항목만
+// → 구매자 결과 화면처럼 1번 사진이 모두 통과면 '첫 번째 사진 인증 성공' 한 줄 + 2번 사진 실패 이유
+// 2번 사진 체크에 실패 항목이 없으면(예매 화면 못 찾음·분석 시간 초과 등은 NOT_CHECKED) 서버 failReasons를 이유로 씀
 const toSellerFailReasons = (result) => {
   if (SELLER_TIMEOUT_REASONS[result.failureCode]) return SELLER_TIMEOUT_REASONS[result.failureCode];
   const checks = result.checks ?? [];
   const firstChecks = checks.filter((check) => check.photoNumber === 1);
+  const firstPassed = firstChecks.length > 0 && firstChecks.every((check) => check.status === "PASSED");
+  const firstReasons = firstPassed ? [FIRST_PHOTO_PASSED_REASON] : toSellerReasons(firstChecks, result.code);
   const secondFailed = toSellerReasons(
     checks.filter((check) => check.photoNumber === 2 && check.status === "FAILED"),
     result.code,
   );
-  if (secondFailed.length > 0) {
-    const firstPassed = firstChecks.length > 0 && firstChecks.every((check) => check.status === "PASSED");
-    return [...(firstPassed ? [FIRST_PHOTO_PASSED_REASON] : toSellerReasons(firstChecks, result.code)), ...secondFailed];
-  }
-  const reasons = toSellerReasons(checks, result.code);
-  return reasons.some((reason) => !reason.passed)
-    ? reasons
-    : (result.failReasons ?? []).map((text) => ({ passed: false, text }));
+  const secondReasons =
+    secondFailed.length > 0 ? secondFailed : (result.failReasons ?? []).map((text) => ({ passed: false, text }));
+  return [...firstReasons, ...secondReasons];
 };
 
 // 판매자 결과(GET /s/{token}/result 등) → 화면 데이터
