@@ -13,6 +13,7 @@ import {
   EXPIRED_BUYER_REASON,
   FIRST_PHOTO_PASSED_REASON,
   SELLER_CHECK_TEXTS,
+  SELLER_PHOTO_NOT_SENT_REASONS,
   SELLER_MESSAGE,
   SELLER_TIMEOUT_REASONS,
   SUCCESS_REASONS,
@@ -219,12 +220,21 @@ const toSellerFailReasons = (result) => {
 
 // 판매자 결과(GET /s/{token}/result 등) → 화면 데이터
 // deadline: 현재 단계 마감 시각(ms, 이 브라우저 시계 기준, remainingMillis로 계산), pollAfter: 판정 중 다시 조회할 간격(ms)
+// 판매자가 2차까지 통과했지만 사진을 보내지 않고 끝남 (공유 기한 지남·공유 불가) → 판매자 화면도 인증 실패
+const isSellerPhotoNotSent = ({ status, phase, photosSharedAt }) =>
+  status === "PASSED" && phase === "COMPLETED" && photosSharedAt === null;
+
 const toSellerSession = (result) => ({
   ...result,
+  photoNotSent: isSellerPhotoNotSent(result),
   deadline: result.remainingMillis === null || result.remainingMillis === undefined ? null : Date.now() + result.remainingMillis,
   pollAfter: result.pollAfterMillis ?? null,
   previews: Object.fromEntries((result.photos ?? []).map((photo) => [photo.number, toApiUrl(photo.previewPath)])),
-  failReasonList: result.status === "FAILED" ? toSellerFailReasons(result) : [],
+  failReasonList: isSellerPhotoNotSent(result)
+    ? SELLER_PHOTO_NOT_SENT_REASONS
+    : result.status === "FAILED"
+      ? toSellerFailReasons(result)
+      : [],
 });
 
 // ---------- 판매자: API ----------

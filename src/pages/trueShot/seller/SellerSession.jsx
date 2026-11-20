@@ -21,8 +21,9 @@ import {
 } from "../../../api/trueShot.js";
 import { JUDGE_LOADING_MS, SELLER_TIMEOUT_REASONS } from "../../../mock/trueShot.js";
 
-// 촬영 마감이 있는 단계 (남은 시간이 0이 되면 서버 결과를 다시 확인)
-const TIMED_PHASES = ["FIRST_CHECKING", "SECOND_WAITING"];
+// 마감이 있는 단계 (남은 시간이 0이 되면 서버 결과를 다시 확인)
+// SHARE_WAITING은 사진 공유 기한(요청 30분)이 지나면 서버가 사진 없이 완료로 닫아서 실패 화면으로 바뀜
+const TIMED_PHASES = ["FIRST_CHECKING", "SECOND_WAITING", "SHARE_WAITING"];
 
 // 2차 사진을 마감 전에 서버로 보내기 위해 남겨 둘 업로드 시간(ms)
 const UPLOAD_MARGIN_MS = 8000;
@@ -33,7 +34,7 @@ const SECOND_SUBMIT_ERROR = "사진을 보내지 못했어요. 다시 찍어 주
 // 판매자 트루샷 (구매자가 보낸 링크 /trueshot/seller/:token 으로 들어옴, 로그인 없음)
 // 진행 상태는 서버가 판매자 브라우저 세션으로 관리 → 들어오거나 새로고침하면 GET /s/{token}/result로 복구
 // 화면은 서버 phase로 결정: FIRST_CHECKING 1차 촬영 / FIRST_MASKING 1차 가리기 / SECOND_WAITING 2차 촬영
-// JUDGING 판정 대기(약 2초마다 조회) / SHARE_WAITING 성공 + 2차 가리기 / COMPLETED 성공 / FAILED 실패
+// JUDGING 판정 대기(약 2초마다 조회) / SHARE_WAITING 성공 + 2차 가리기·전송 / COMPLETED 성공(사진 안 보내고 끝나면 실패) / FAILED 실패
 // 확인용(목업 모드만): 주소에 ?mock=fail1 / ?mock=fail2 를 붙이면 1차·2차 판독이 실패함
 export default function SellerSession() {
   const { token } = useParams();
@@ -241,7 +242,11 @@ export default function SellerSession() {
     if (!session) return link ? <SellerIntro onStart={handleStart} /> : null;
 
     if (phase === "FAILED") return <SellerResult reasons={session.failReasonList} buttonLabel="끝내기" onButton={goHome} />;
-    if (phase === "COMPLETED") return <SellerResult success />;
+    // 사진을 보내지 않고 끝났으면(공유 기한 지남 등) 인증 실패
+    if (phase === "COMPLETED") {
+      if (session.photoNotSent) return <SellerResult reasons={session.failReasonList} buttonLabel="끝내기" onButton={goHome} />;
+      return <SellerResult success />;
+    }
 
     if (phase === "SHARE_WAITING") {
       if (maskPhoto) return <MaskEditor photo={maskPhoto} buttonLabel="요청자에게 전송하기" busy={busy} onDone={handleShare} />;
