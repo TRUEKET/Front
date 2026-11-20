@@ -22,6 +22,12 @@ const ROUND_CONFIG = {
   2: {
     guideLabel: "미션!",
     guideSteps: ["미션 행동 이행", "다른 기기로 예매 내역 노출", "한 장에 전부 담기게 사진 촬영"],
+    // 미션별 첫 줄 (손 인식이 잘 되는 자세 안내, 피그마에 없음, 디자인 확인 필요)
+    missionStep: {
+      GESTURE: "손바닥이 보이게 브이",
+      GESTURE_POSITION: "손바닥이 보이게 브이",
+      POINT_SCREEN: "손 전체가 보이게 화면 가리키기",
+    },
     notice: [
       "갤러리 사진은 업로드 불가합니다. (실시간 검증용)",
       "개인정보는 구매자에게 전송하기 전 자동으로 숨김처리됩니다.",
@@ -251,10 +257,13 @@ const StyledShotButton = styled(MainButton)`
 
 // 판매자 촬영 지시 화면 (round 1: 1차 인증코드 / round 2: 2차 무작위 지시)
 // 촬영 버튼은 카메라로 바로 찍도록 capture 속성을 씀 (모바일 대부분 카메라가 바로 열림)
-export default function SellerShot({ round, code, mission, remainSeconds, onShot }) {
+// missionType: 2차 미션 종류(GESTURE·GESTURE_POSITION·POINT_SCREEN), 가이드 첫 줄을 미션에 맞는 손 자세로
+export default function SellerShot({ round, code, mission, missionType, remainSeconds, onShot }) {
   const inputRef = useRef(null);
   const config = ROUND_CONFIG[round];
   const isSecond = round === 2;
+  const missionStep = config.missionStep?.[missionType];
+  const guideSteps = missionStep ? [missionStep, ...config.guideSteps.slice(1)] : config.guideSteps;
 
   // 찍은 원본 파일을 그대로 넘김 (회전·축소는 판독 단계에서 한 번만)
   const handleFile = (e) => {
@@ -311,7 +320,7 @@ export default function SellerShot({ round, code, mission, remainSeconds, onShot
               <span>{config.guideLabel}</span>
             </StyledGuideImage>
             <StyledGuideSteps>
-              {config.guideSteps.map((step) => (
+              {guideSteps.map((step) => (
                 <li key={step}>{step}</li>
               ))}
             </StyledGuideSteps>
