@@ -293,6 +293,14 @@ export async function getRequest(id) {
   return detail(findById(id));
 }
 
+// PATCH /trueshot/{id}: 제목 수정 (필수, 앞뒤 공백 제거, 공백만·20자 초과는 400, 진행·완료·만료 상태에서도 가능)
+export async function updateTitle(id, { title }) {
+  const request = findById(id);
+  const trimmed = (title ?? "").trim();
+  if (!trimmed || trimmed.length > 20) throw new ApiError(400, "제목은 1~20자로 입력해 주세요.");
+  return detail(saveRequest({ ...request, title: trimmed }));
+}
+
 // ---------- 판매자 ----------
 
 export async function getSellerLink(token) {
