@@ -19,12 +19,13 @@ const MAX_HANDS = 4;
 
 // 손 찾기 기준 점수 (MediaPipe 기본값 0.5)
 // 실제 2차 사진은 예매 화면과 함께 찍어 손이 작아서 빈 배열이 많았음 → 0.3으로 완화
-// 손이 아닌 것을 잡아도 서버가 브이 점수(0.7)·예매 화면 위치로 다시 판정해서 영향이 작음
+// 손이 아닌 것을 잡아도 서버가 브이 점수·예매 화면 위치로 다시 판정해서 영향이 작음
 const MIN_HAND_DETECTION_CONFIDENCE = 0.3;
 const MIN_HAND_PRESENCE_CONFIDENCE = 0.3;
 
 // 브이로 인정하는 점수 (서버 HandMissionEvaluator.MIN_GESTURE_CONFIDENCE와 같게)
-export const VICTORY_MIN_SCORE = 0.7;
+// 실제 아이폰 사진에서 확실한 브이도 0.6~0.8 사이로 나와 서버와 함께 0.7 → 0.5로 낮춤 (2026-11-20)
+export const VICTORY_MIN_SCORE = 0.5;
 
 // 분석·전송 이미지의 긴 쪽 크기(px)
 const MAX_IMAGE_SIZE = 1000;
