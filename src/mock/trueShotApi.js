@@ -122,6 +122,10 @@ const refresh = (request, now = Date.now()) => {
   if (!isFinished(next) && next.phase !== "SHARE_WAITING" && now > Date.parse(next.expiresAt)) {
     next = fail(next, "REQUEST_TIMEOUT", ["인증 링크 기한이 지났어요."]);
   }
+  // 성공했지만 판매자가 공유 기한(요청 30분) 안에 사진을 안 보냄 → 서버 closeShareWindow처럼 사진 없이 COMPLETED
+  if (next.phase === "SHARE_WAITING" && now > Date.parse(next.expiresAt)) {
+    next = { ...next, phase: "COMPLETED" };
+  }
   if (next.phase === "FIRST_CHECKING" && now > Date.parse(next.deadline1)) {
     next = fail(next, "FIRST_PHOTO_TIMEOUT", ["첫 번째 사진 제출 시간이 지났어요."]);
   }
