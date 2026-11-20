@@ -136,7 +136,6 @@ const toScanResult = (response, photoUrls) => {
     conversations: talks,
     showReportButton: assessment.showReportButton,
     showSuspicionReport: assessment.showSuspicionReport,
-    showTrueshot: assessment.chat.showTrueshotOnResult,
   };
 };
 
@@ -601,13 +600,11 @@ export default function ScanResult() {
           </StyledOriginalButton>
         </TalkCard>
 
-        {/* 아옮, 대리티켓팅, 취켓 대행처럼 서버가 트루샷을 권하지 않는 거래는 숨김 */}
-        {result.showTrueshot && (
-          <StyledTrueshotButton type="button">
-            <StyledTrueshotTitle>판매자에게 트루샷 요청하기</StyledTrueshotTitle>
-            <StyledTrueshotSub>실시간 사진 인증 기능</StyledTrueshotSub>
-          </StyledTrueshotButton>
-        )}
+        {/* 안전, 의심, 위험 모든 단계와 거래 종류에서 항상 보여줌 (누르면 트루샷 화면으로) */}
+        <StyledTrueshotButton type="button" onClick={() => navigate("/trueshot")}>
+          <StyledTrueshotTitle>판매자에게 트루샷 요청하기</StyledTrueshotTitle>
+          <StyledTrueshotSub>실시간 사진 인증 기능</StyledTrueshotSub>
+        </StyledTrueshotButton>
 
         {result.showReportButton && config.showReportHint && <StyledReportHint>이미 금전적 피해를 봤다면?</StyledReportHint>}
         {result.showReportButton && (
