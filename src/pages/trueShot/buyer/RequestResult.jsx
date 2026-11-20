@@ -8,9 +8,6 @@ import ResultTitle from "../../../components/trueShot/ResultTitle.jsx";
 import ReasonList from "../../../components/trueShot/ReasonList.jsx";
 import { getExpiredReason, getSuccessReasons, getTrueShotRequest } from "../../../api/trueShot.js";
 
-// 인증은 성공했지만 판매자 사진을 받지 못했을 때 사진 아래 안내 (피그마에 없음, 디자인 확인 필요)
-const NO_PHOTOS_NOTICE = "판매자가 사진을 보내지 않았어요.";
-
 // 판매자 사진 미션 (2차는 서버가 공개한 지시 instruction2, 공개 전이면 피그마 기본 문구)
 const FIRST_MISSION = "종이에 인증코드 적어 예매 화면 좌측에 두고 촬영";
 const DEFAULT_SECOND_MISSION = "예매화면 오른쪽에 손가락 브이한채로 촬영";
@@ -175,7 +172,7 @@ export default function RequestResult() {
           ))}
         </StyledCard>
 
-        {isSuccess && <ShotPhotos photos={request.photos} notice={request.photosMissing ? NO_PHOTOS_NOTICE : null} />}
+        {isSuccess && <ShotPhotos photos={request.photos} />}
 
         <StyledCard>
           <StyledCardTitle $weight={config.reasonsWeight}>{config.reasonsTitle}</StyledCardTitle>

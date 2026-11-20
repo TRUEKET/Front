@@ -8,10 +8,12 @@ import { USE_MOCK } from "./mockMode.js";
 import * as mockTrueShot from "../mock/trueShotApi.js";
 import { submitSecondPhoto } from "./handAnalyze.js";
 import {
+  BUYER_PHOTO_NOT_SENT_REASONS,
   BUYER_TIMEOUT_REASONS,
   EXPIRED_BUYER_REASON,
   FIRST_PHOTO_PASSED_REASON,
   SELLER_CHECK_TEXTS,
+  SELLER_PHOTO_NOT_SENT_REASONS,
   SELLER_MESSAGE,
   SELLER_TIMEOUT_REASONS,
   SUCCESS_REASONS,
@@ -27,8 +29,16 @@ const toApiUrl = (path) => (!path ? null : /^(https?:|data:)/.test(path) ? path 
 // 목록·상세 응답 모두 failureCode가 있어 시간 만료(REQUEST_TIMEOUT)를 목록 배지에서도 구분
 // 서버는 2차 판정 통과 시 바로 PASSED + SHARE_WAITING, 판매자가 사진을 가리고 보내면(또는 공유 기한이 지나면) COMPLETED
 // → 구매자에게는 판매자가 사진을 보낸 뒤에 인증 성공을 보여주도록 SHARE_WAITING까지는 진행 중으로 처리
-const toStatus = ({ status, phase, failureCode }) => {
-  if (status === "PASSED") return phase === "SHARE_WAITING" ? "pending" : "success";
+// → 사진 없이 COMPLETED(공유 기한 지남·자동 가림 불확실로 공유 불가)면 사진을 못 받았으니 인증 실패
+const isPhotoNotSent = ({ status, phase, photosSharedAt, photos }) =>
+  status === "PASSED" && phase === "COMPLETED" && photosSharedAt === null && !photos?.length;
+
+const toStatus = (request) => {
+  const { status, phase, failureCode } = request;
+  if (status === "PASSED") {
+    if (phase === "SHARE_WAITING") return "pending";
+    return isPhotoNotSent(request) ? "failed" : "success";
+  }
   if (status === "FAILED") return failureCode === "REQUEST_TIMEOUT" ? "expired" : "failed";
   return "pending";
 };
@@ -63,7 +73,9 @@ const toProgress = (request) => {
 
 // 구매자 실패 이유 ({ passed, text } 목록)
 // 촬영 시간 초과는 기획 확정 문구, 판정 실패는 첫 사진 통과 + 서버 failReasons
-const toBuyerFailReasons = ({ failureCode, failReasons = [] }) => {
+const toBuyerFailReasons = (request) => {
+  const { failureCode, failReasons = [] } = request;
+  if (isPhotoNotSent(request)) return BUYER_PHOTO_NOT_SENT_REASONS;
   if (BUYER_TIMEOUT_REASONS[failureCode]) return BUYER_TIMEOUT_REASONS[failureCode];
   const reasons = failReasons.map((text) => ({ passed: false, text }));
   return FAILED_FIRST_DONE.includes(failureCode) ? [FIRST_PHOTO_PASSED_REASON, ...reasons] : reasons;
@@ -96,17 +108,34 @@ const toRequestDetail = (request) => {
     failReasons: status === "failed" ? toBuyerFailReasons(request) : [],
     // 공유된 가림 사진 2장 (공유 전·거절이면 null → 회색 자리)
     photos: [photos.get(1) ?? null, photos.get(2) ?? null],
-    // 인증 성공인데 사진이 없음: 판매자가 공유 기한(요청 30분) 안에 안 보냄·공유 거절·가림 불확실 (서버 응답으로는 구분 안 됨)
-    photosMissing: status === "success" && photos.size === 0,
   };
 };
 
 // ---------- 구매자: API ----------
 
+// GET /trueshot/{id} 원본 응답
+const fetchRequest = (id, options) => (USE_MOCK ? mockTrueShot.getRequest(id) : api.get(`/trueshot/${id}`, options));
+
+// 목록 응답에는 사진 공유 여부(photosSharedAt·photos)가 없어서, 성공으로 끝난 요청(PASSED + COMPLETED)만
+// 상세를 한 번 더 불러와 사진을 받았는지 확인 (받지 못했으면 목록 배지도 인증 실패)
+// TODO: 백엔드 목록 응답에 photosSharedAt이 생기면 이 추가 요청 없애기
+const withShareInfo = async (request, options) => {
+  if (request.status !== "PASSED" || request.phase !== "COMPLETED") return request;
+  try {
+    const { photosSharedAt, photos } = await fetchRequest(request.id, options);
+    return { ...request, photosSharedAt, photos };
+  } catch (error) {
+    if (error.name === "AbortError") throw error;
+    // 확인 실패면 목록 응답 그대로 (인증 성공)
+    return request;
+  }
+};
+
 // GET /trueshot → 최신 순 목록
 export async function getTrueShotRequests(options) {
   const requests = USE_MOCK ? await mockTrueShot.listRequests() : await api.get("/trueshot", options);
-  return requests.map(toRequestSummary);
+  const checked = await Promise.all(requests.map((request) => withShareInfo(request, options)));
+  return checked.map(toRequestSummary);
 }
 
 // POST /trueshot → 새 요청 (이름은 서버가 "요청 N"으로 정함)
@@ -117,8 +146,7 @@ export async function createTrueShotRequest() {
 
 // GET /trueshot/{id} → 상세 (다른 사람의 요청·없는 요청은 404 ApiError)
 export async function getTrueShotRequest(id, options) {
-  const request = USE_MOCK ? await mockTrueShot.getRequest(id) : await api.get(`/trueshot/${id}`, options);
-  return toRequestDetail(request);
+  return toRequestDetail(await fetchRequest(id, options));
 }
 
 // PATCH /trueshot/{id} → 제목 수정 후 상세 (제목 필수·최대 20자·공백만 불가는 400, 앞뒤 공백은 서버가 제거)
@@ -192,12 +220,21 @@ const toSellerFailReasons = (result) => {
 
 // 판매자 결과(GET /s/{token}/result 등) → 화면 데이터
 // deadline: 현재 단계 마감 시각(ms, 이 브라우저 시계 기준, remainingMillis로 계산), pollAfter: 판정 중 다시 조회할 간격(ms)
+// 판매자가 2차까지 통과했지만 사진을 보내지 않고 끝남 (공유 기한 지남·공유 불가) → 판매자 화면도 인증 실패
+const isSellerPhotoNotSent = ({ status, phase, photosSharedAt }) =>
+  status === "PASSED" && phase === "COMPLETED" && photosSharedAt === null;
+
 const toSellerSession = (result) => ({
   ...result,
+  photoNotSent: isSellerPhotoNotSent(result),
   deadline: result.remainingMillis === null || result.remainingMillis === undefined ? null : Date.now() + result.remainingMillis,
   pollAfter: result.pollAfterMillis ?? null,
   previews: Object.fromEntries((result.photos ?? []).map((photo) => [photo.number, toApiUrl(photo.previewPath)])),
-  failReasonList: result.status === "FAILED" ? toSellerFailReasons(result) : [],
+  failReasonList: isSellerPhotoNotSent(result)
+    ? SELLER_PHOTO_NOT_SENT_REASONS
+    : result.status === "FAILED"
+      ? toSellerFailReasons(result)
+      : [],
 });
 
 // ---------- 판매자: API ----------

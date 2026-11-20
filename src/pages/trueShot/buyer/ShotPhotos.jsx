@@ -85,14 +85,6 @@ const StyledFrame = styled.div`
   }
 `;
 
-// 사진을 받지 못했을 때 사진 아래 안내 한 줄 (피그마에 없음, 디자인 확인 필요)
-const StyledNotice = styled.p`
-  color: #4e4a57;
-  font-size: 12px;
-  font-weight: 500;
-  text-align: center;
-`;
-
 // 크게 보기 / 접기 버튼 (오른쪽 정렬, 왼쪽 화살표 원본을 돌려 아래·위 방향으로)
 const StyledToggle = styled.button`
   display: flex;
@@ -116,8 +108,7 @@ const StyledToggle = styled.button`
 `;
 
 // 판매자 촬영 사진 2장 (photos: 이미지 주소, 없으면 null → "사진 원본" 자리 표시)
-// notice: 사진 아래 안내 한 줄 (없으면 숨김)
-export default function ShotPhotos({ photos, notice = null }) {
+export default function ShotPhotos({ photos }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -133,7 +124,6 @@ export default function ShotPhotos({ photos, notice = null }) {
           </StyledFrame>
         ))}
       </StyledPhotos>
-      {notice && <StyledNotice>{notice}</StyledNotice>}
       <StyledToggle type="button" $expanded={expanded} onClick={() => setExpanded((prev) => !prev)}>
         {expanded ? "접기" : "크게 보기"}
         <img src={chevronIcon} alt="" />
