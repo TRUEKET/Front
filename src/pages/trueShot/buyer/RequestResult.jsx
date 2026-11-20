@@ -8,6 +8,14 @@ import ResultTitle from "../../../components/trueShot/ResultTitle.jsx";
 import ReasonList from "../../../components/trueShot/ReasonList.jsx";
 import { getExpiredReason, getSuccessReasons, getTrueShotRequest } from "../../../api/trueShot.js";
 
+// 인증 성공 후 판매자가 사진을 가리고 보내기 전(SHARE_WAITING)이면 다시 불러오는 간격(ms)
+const SHARE_POLL_MS = 5000;
+
+// 서버는 2차 판정 통과 시 바로 인증 성공(PASSED)으로 바꾸고, 판매자가 가리기·전송을 마치면 COMPLETED + 사진 공유
+// → 성공인데 아직 전송 전이고 공유 기한(요청 30분) 안이면 사진을 기다림
+const isWaitingPhotos = (request) =>
+  request.status === "success" && request.phase === "SHARE_WAITING" && Date.now() < Date.parse(request.expiresAt);
+
 // 판매자 사진 미션 (2차는 서버가 공개한 지시 instruction2, 공개 전이면 피그마 기본 문구)
 const FIRST_MISSION = "종이에 인증코드 적어 예매 화면 좌측에 두고 촬영";
 const DEFAULT_SECOND_MISSION = "예매화면 오른쪽에 손가락 브이한채로 촬영";
@@ -123,6 +131,7 @@ const StyledBottomAction = styled.div`
 `;
 
 // 트루샷 인증 결과 (성공: 판매자 촬영 사진 + 성공 이유 / 실패: 실패 이유 / 시간 만료: 만료 문구)
+// 성공인데 판매자가 아직 사진을 보내기 전이면 5초마다 다시 불러와 새로고침 없이 사진 표시 (보내면·화면을 벗어나면 멈춤)
 export default function RequestResult() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -131,12 +140,25 @@ export default function RequestResult() {
 
   useEffect(() => {
     const controller = new AbortController();
-    getTrueShotRequest(id, { signal: controller.signal })
-      .then(setRequest)
-      .catch((error) => {
-        if (error.name !== "AbortError") setRequest(null);
-      });
-    return () => controller.abort();
+    let timer = null;
+
+    const load = async () => {
+      try {
+        const next = await getTrueShotRequest(id, { signal: controller.signal });
+        setRequest(next);
+        if (isWaitingPhotos(next)) timer = setTimeout(load, SHARE_POLL_MS);
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        // 처음 불러오기 실패면 트루샷 메인으로, 다시 불러오기 실패는 이전 화면 유지
+        setRequest((prev) => prev ?? null);
+      }
+    };
+
+    load();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, [id]);
 
   if (request === undefined) return <BackHeader label="뒤로가기" />;
